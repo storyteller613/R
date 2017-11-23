@@ -1,0 +1,1113 @@
+---
+title: "Sentiment Analysis in R"
+output: html_notebook
+---
+
+#Visualize polarity
+
+###In this example you will use the magrittr package's dollar pipe operator %$%. The dollar sign forwards the data frame into polarity() and you declare a text column name or the text column and a grouping variable without quotes.
+
+```{r}
+install.packages("readr")
+library(readr)
+install.packages("magrittr")
+library(magrittr)
+install.packages("qdap")
+library(qdap)
+
+system("java -version")
+Sys.setenv(JAVA_HOME = "C:/Program Files/Java/jre1.8.0_151/")
+
+text_df <- read_csv("text_df.csv")
+
+# Examine the text data
+text_df
+
+# Calc overall polarity score
+text_df %$% polarity(text)
+
+# Calc polarity score by person
+(datacamp_conversation <- text_df %$% polarity(text, person))
+
+# Counts table from datacamp_conversation
+counts(datacamp_conversation)
+
+# Plot the conversation polarity
+plot(datacamp_conversation)
+
+
+```
+
+#TM refresher (I)
+
+VectorSource(): turns a character vector into a text source. 
+VCorpus(): Turn a text source into a corpus. 
+Remove unwanted characters from the corpus using cleaning function:
+    TM: removePunctuation() and stripWhitespace()
+    QDAP: replace_abbreviation()
+    
+standard preprocessing functions:
+
+function(corpus){
+  corpus <- tm_map(corpus, content_transformer(replace_abbreviation))
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, removeNumbers)
+  corpus <- tm_map(corpus, removeWords, c(stopwords("en"), "coffee"))
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, stripWhitespace)
+  return(corpus)
+}
+
+create a Document Term Matrix (DTM)
+  Each row of the matrix represents a document.
+  Each column is a unique word token.
+  Values of the matrix correspond to an individual document's word usage.
+
+DocumentTermMatrix() on the corpus object: constructs a DTM after cleaning the corpus
+```{r}
+install.packages("NLP")
+library(NLP)
+install.packages("tm")
+library(tm)
+install.packages("qdap")
+library(qdap)
+
+tm_define <- c("Text mining is the process of distilling actionable insights from text.",                       "Sentiment analysis represents the set of tools to extract an author's feelings towards a subject.")
+
+# clean_corpus(),
+function(corpus){
+  corpus <- tm_map(corpus, content_transformer(replace_abbreviation))
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, removeNumbers)
+  corpus <- tm_map(corpus, removeWords, c(stopwords("en"), "coffee"))
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, stripWhitespace)
+  return(corpus)
+}
+
+tm_define <- c("Text mining is the process of distilling actionable insights from text.", "Sentiment analysis represents the set of tools to extract an author's feelings towards a subject.")
+
+# Create a VectorSource
+tm_vector <- VectorSource(tm_define)
+
+tm_vector
+
+# Apply VCorpus
+tm_corpus <- VCorpus(tm_vector)
+tm_corpus
+
+# Examine the first document's contents
+content(tm_corpus[[1]])
+
+# Clean the text
+tm_clean <- clean_corpus_2(tm_corpus)
+
+# Reexamine the contents of the first doc
+content(tm_clean[[1]])
+
+```
+#TM refresher (II)
+
+```{r}
+coffee <- read_csv("coffee.csv", col_types = cols(created = col_number(), 
+    id = col_number(), replyToSID = col_number()))
+head(coffee)
+dim(coffee)
+
+# clean_corpus()
+clean_corpus <- function(corpus){
+  corpus <- tm_map(corpus, content_transformer(replace_abbreviation))
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, removeNumbers)
+  corpus <- tm_map(corpus, removeWords, c(stopwords("en"), "coffee"))
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, stripWhitespace)
+  return(corpus)
+}
+
+# Isolate text from tweets: coffee_tweets
+#coffee_tweets <- tweets$text
+
+# Create a DataframeSource on columns 2 and 3: df_source
+coffee_source <- DataframeSource(coffee[,2])
+head(coffee_source)
+
+# Convert df_source to a corpus: df_corpus
+coffee_corpus <- VCorpus(coffee_source)
+
+clean_text <- clean_corpus(coffee_corpus)
+
+clean_text
+
+# clean_text is pre-defined
+clean_text
+
+# Create tf_dtm
+tf_dtm <- DocumentTermMatrix(clean_text)
+
+# Create tf_dtm_m
+tf_dtm_m <- as.matrix(tf_dtm)
+
+# Dimensions of DTM matrix
+dim(tf_dtm_m)
+
+# Subset part of tf_dtm_m for comparison
+tf_dtm_m[16:20, 2975:2985]
+
+```
+#Where can you observe Zipf's law?
+
+#A subjectivity lexicon is a predefined list of words associated with emotional context such as positive/negative.
+
+```{r}
+library(magrittr)
+install.packages("metricsgraphics")
+library(metricsgraphics)
+
+sb_words <- read_csv("sb_words.csv")
+
+# Examine sb_words
+head(sb_words)
+
+# Create expectations
+sb_words$expectations <- sb_words %$% 
+  {freq / rank}
+
+# Create metrics plot
+sb_plot <- mjs_plot(sb_words, x = rank, y = freq, show_rollover_text = FALSE)
+
+# Add 1st line
+sb_plot <- mjs_line(sb_plot)
+
+# Add 2nd line
+sb_plot <- mjs_add_line(sb_plot, expectations)
+
+# Add legend
+sb_plot <- mjs_add_legend(sb_plot, legend = c("Frequency", "Expectation"))
+
+# Display plot
+sb_plot
+```
+#Polarity on actual text
+
+```{r}
+# Example statements
+positive <- "DataCamp courses are good for learning"
+
+# Calculate polarity of both statements
+(pos_score <-polarity(positive))
+
+# Get counts
+(pos_counts <- counts(pos_score))
+  
+# Number of positive words
+n_good <- length(pos_counts$pos.words[[1]])
+  
+# Total number of words
+n_words <- pos_counts$wc
+  
+# Verify polarity score
+n_good / sqrt(n_words)
+```
+#Happy songs!
+
+###Task: Apply polarity() to text wit amplifers and negating words.
+
+```{r}
+library(readr)
+library(qdap)
+library(magrittr)
+
+conversation <- read_csv("conversation.csv")
+
+# Examine conversation
+conversation
+
+# Polarity - All
+polarity(conversation$text)
+
+# Polarity - Grouped
+student_pol <- conversation %$%
+  polarity(text, student)
+
+# Student results
+scores(student_pol)
+
+# Sentence by sentence
+counts(student_pol)
+
+# qdap plot
+plot(student_pol)
+```
+#LOL, this song is wicked good
+
+```{r}
+text <- read_csv("text.csv")
+
+# Examine the key.pol
+key.pol
+
+# Negators
+negation.words
+
+# Amplifiers
+amplification.words
+
+# De-amplifiers
+deamplification.words
+
+# Examine
+text
+
+# Explicit polarity parameters
+polarity(
+  text.var       = text$words,
+  grouping.var   = text$speaker,
+  polarity.frame = key.pol,
+  negators       = negation.words,
+  amplifiers     = amplification.words,
+  deamplifiers   = deamplification.words 
+)
+```
+#Stressed Out!
+
+Verify the key.pol subjectivity lexicon does not already have the term you want to add. One way to check is with grep(). The grep() function returns the row containing characters that match a search pattern. Here is an example used while indexing.
+
+data_frame[grep("search_pattern", data_frame$column), ]
+
+###Task: Take the specific features of the text you're analyzing into account.
+
+###Result: It's important to take the specific features of the text you're analyzing into account so that you can make sure your results are accurate.
+
+```{r}
+stressed_out <- c("I wish I found some better sounds no ones ever heard\nI wish I had a better voice that sang some better words\nI wish I found some chords in an order that is new\nI wish I didnt have to rhyme every time I sang\nI was told when I get older all my fears would shrink\nBut now Im insecure and I care what people think\nMy names Blurryface and I care what you think\nMy names Blurryface and I care what you think\nWish we could turn back time, to the good old days\nWhen our momma sang us to sleep but now were stressed out\nWish we could turn back time to the good old days\nWhen our momma sang us to sleep but now were stressed out\nWere stressed out\nSometimes a certain smell will take me back to when I was young\nHow come Im never able to identify where its coming from\nId make a candle out of it if I ever found it\nTry to sell it never sell out of it Id probably only sell one\nItd be to my brother, cause we have the same nose\nSame clothes homegrown a stones throw from a creek we used to roam\nBut it would remind us of when nothing really mattered\nOut of student loans and tree-house homes we all would take the latter\nMy names Blurryface and I care what you think\nMy names Blurryface and I care what you think\nWish we could turn back time, to the good old days\nWhen our momma sang us to sleep but now were stressed out\nWish we could turn back time, to the good old days\nWhen our momma sang us to sleep but now were stressed out\nWe used to play pretend, give each other different names\nWe would build a rocket ship and then wed fly it far away\nUsed to dream of outer space but now theyre laughing at our face #\nSaying, Wake up you need to make money\nYeah\nWe used to play pretend give each other different names\nWe would build a rocket ship and then wed fly it far away\nUsed to dream of outer space but now theyre laughing at our face\nSaying, Wake up, you need to make money\nYeah\nWish we could turn back time, to the good old days\nWhen our momma sang us to sleep but now were stressed out\nWish we could turn back time, to the good old days\nWhen our momma sang us to sleep but now were stressed out\nUsed to play pretend, used to play pretend bunny\nWe used to play pretend wake up, you need the money\nUsed to play pretend used to play pretend bunny\nWe used to play pretend, wake up, you need the money\nWe used to play pretend give each other different names\nWe would build a rocket ship and then wed fly it far away\nUsed to dream of outer space but now theyre laughing at our face\nSaying, Wake up, you need to make money\nYeah")
+
+# stressed_out has been pre-defined
+head(stressed_out)
+
+# Basic lexicon score
+polarity(stressed_out)
+
+# Check the subjectivity lexicon
+key.pol[grep("stress", x)]
+
+# New lexicon
+custom_pol <- sentiment_frame(positive.words, c(negative.words, "stressed", "turn back"))
+
+# Compare new score
+polarity(stressed_out, polarity.frame = custom_pol)
+```
+#Plutchik's wheel of emotion, polarity vs. sentiment
+
+#Plutchik believed the primary emotions were formed as survival mechanisms in humans and animals.
+
+#DTM vs. tidytext matrix
+```{r}
+Agamemnon
+ag <- filter(all_books, book == "agamemnon")
+head(ag)
+
+# As matrix
+ag_dtm_m <- as.matrix(ag_dtm)
+
+# Examine line 2206 and columns 245:250
+ag_dtm_m[2206, 245:250]
+
+# Tidy up the DTM
+ag_tidy <- tidy(ag_dtm)
+
+# Examine tidy with a word you saw
+ag_tidy[831:835, ]
+
+
+```
+#DTM vs. tidytext matrix
+
+```{r}
+# As matrix
+ag_dtm_m <- as.matrix(ag_dtm)
+
+# Examine line 2206 and columns 245:250
+ag_dtm_m[2206, 245:250]
+
+# Tidy up the DTM
+ag_tidy <- tidy(ag_dtm)
+
+# Examine tidy with a word you saw
+ag_tidy[831:835, ]
+```
+#Examine the sentiments data frame
+
+```{r}
+install.packages("tidytext")
+library(tidytext)
+install.packages("plyr")
+library(plyr)
+library(magrittr)
+library(ggplot2)
+install.packages("ggthemes")
+library(ggthemes)
+
+# Subset to AFINN
+afinn_lex <- get_sentiments("afinn")
+
+# Count AFINN scores
+count(afinn_lex$score)
+  
+# Subset to nrc
+nrc_lex <- get_sentiments("nrc")
+
+# Print nrc_lex
+nrc_lex
+
+# Make the nrc counts object
+nrc_counts <-  count(nrc_lex$sentiment)
+head(nrc_counts)
+
+# Barplot
+ggplot(nrc_counts, aes(x = x, y = freq))+
+  geom_bar(stat = "identity") +
+  theme_gdocs()
+```
+#Bing tidy polarity: Simple example
+
+object <- x %>% 
+    inner_join(y, by = c("column_from_x" = "column_from_y")
+    
+```{r}
+
+# Qdap polarity
+polarity(ag)
+
+# Get Bing lexicon
+bing <- get_sentiments("bing")
+
+# Join text to lexicon
+ag_bing_words <- inner_join(ag_tidy, bing, by = c("term" = "word"))
+
+# Examine
+ag_bing_words
+
+# Get counts by sentiment
+ag_bing_words %>%
+  count(sentiment)
+```
+#Bing tidy polarity: Call me Ishmael (with ggplot2)!
+
+```{r}
+all_books <- readRDS("C:/Users/Y/Downloads/all_books.rds")
+all_books$book <- as.factor(all_books$book)
+glimpse(all_books)
+levels(factor(all_books$book))
+library(tidyr)
+moby <- filter(all_books, book == "moby_dick")
+str(moby)
+
+# Get Bing lexicon
+bing <- get_sentiments("bing")
+str(bing)
+
+moby_polarity <- moby %>%
+  # Inner join to lexicon
+  inner_join(bing, by = c("term"="word")) %>%
+  # Set index to numeric document
+  mutate(index = as.numeric(document)) %>%
+  # Count the sentiment scores
+  count(sentiment, index) %>% 
+  # Spread the sentiment into positive and negative columns
+  spread(sentiment, n, fill = 0) %>%
+  # Add polarity column
+  mutate(polarity = positive-negative)
+
+# Plot polarity vs. index
+ggplot(moby_polarity, aes(x=index, y=polarity)) + 
+  # Add a smooth trend curve
+  geom_smooth() 
+```
+#AFINN: I'm your Huckleberry
+
+Now we transition to the AFINN lexicon. The AFINN lexicon has numeric values from 5 to -5, not just positive or negative. Unlike the Bing lexicon's sentiment, the AFINN lexicon's sentiment score column is called score.
+
+```{r}
+huck <- filter(all_books, book == "huck_finn")
+str(huck)
+huck
+
+# See abbreviated line 5400
+huck %>% filter(document == 5400)
+
+library(tidytext)
+data(sentiments)
+afinn <- subset(sentiments, sentiments$lexicon == "AFINN")
+
+# What are the scores of the sentiment words?
+afinn %>% filter(word %in% c("fun", "glad"))
+
+huck_afinn <- huck %>% 
+  # Inner Join to AFINN lexicon
+  inner_join(afinn, by = c("term" = "word")) %>%
+  # Count by score and line
+  count(score, document)
+
+huck_afinn_agg <- huck_afinn %>% 
+  # Group by line
+  group_by(document) %>%
+  # Sum scores by line
+  summarize(total_score = sum(score))
+
+# Filter huck_afinn_agg
+huck_afinn_agg %>% filter(document == 5400)
+
+huck_afinn_agg$document <- as.numeric(huck_afinn_agg$document)
+huck_afinn_agg_1 <- arrange(huck_afinn_agg, document)
+
+# Plot total score vs. line
+ggplot(huck_afinn_agg_1, aes(x=document, y=total_score)) + 
+  # Add a smooth trend curve
+  geom_smooth() 
+```
+#Hamlet & NRC
+
+```{r}
+library(tidytext)
+data(sentiments)
+nrc <- subset(sentiments, sentiments$lexicon == "nrc")
+
+oz <- read_csv("oz.csv")
+head(oz)
+
+# Join text and lexicon
+oz_nrc <- inner_join(oz, nrc, by = c("term" = "word"))
+head(oz_nrc)
+
+# DataFrame of tally
+oz_plutchik <- oz_nrc %>% 
+  # Only consider Plutchik sentiments
+  filter(!sentiment %in% c("positive", "negative")) %>%
+  # Group by sentiment
+  group_by(sentiment) %>% 
+  # Get total count by sentiment
+  summarize(total_count = sum(count))
+
+head(oz_plutchik)
+
+# Plot the counts
+ggplot(oz_plutchik, aes(x=sentiment, y=total_count)) +
+  # Add a column geom
+  geom_col()
+```
+#Romeo & NRC
+
+```{r}
+library(tidytext)
+data(sentiments)
+nrc <- subset(sentiments, sentiments$lexicon == "nrc")
+
+romeo <- filter(all_books, book == "romeo_juliet")
+romeo$author <- NULL
+romeo$book <- NULL
+
+# Join text and lexicon
+rom_nrc <- inner_join(romeo, nrc, by = c("term" = "word"))
+
+# DataFrame of tally
+rom_plutchik <- rom_nrc %>% 
+  # Only consider Plutchik sentiments
+  filter(!sentiment %in% c("positive", "negative")) %>%
+  # Group by sentiment
+  group_by(sentiment) %>% 
+  # Get total count by sentiment
+  summarize(total_count = sum(count))
+
+# Plot the counts
+ggplot(rom_plutchik, aes(x=sentiment, y=total_count)) +
+  # Add a column geom
+  geom_col()
+```
+#Unhappy ending? Chronological polarity
+
+```{r}
+all_books <- readRDS("C:/Users/Y/Downloads/all_books.rds")
+all_books$book <- as.factor(all_books$book)
+glimpse(all_books)
+levels(factor(all_books$book))
+library(tidyr)
+moby <- filter(all_books, book == "moby_dick")
+str(moby)
+
+# Get Bing lexicon
+bing <- get_sentiments("bing")
+str(bing)
+
+moby_polarity <- moby %>%
+  # Inner join to lexicon
+  inner_join(bing, by = c("term"="word")) %>%
+  # Set index to numeric document
+  mutate(index = as.numeric(document)) %>%
+  # Count the sentiment scores
+  count(sentiment, index) %>% 
+  # Spread the sentiment into positive and negative columns
+  spread(sentiment, n, fill = 0) %>%
+  # Add polarity column
+  mutate(
+    # Add polarity field
+    polarity = positive-negative,
+    # Add line number field
+    line_number = row_number()    
+  )
+
+# Plot
+ggplot(moby_polarity, aes(x=line_number, y=polarity)) + 
+  geom_smooth() +
+  geom_hline(yintercept = 0, color = "red") +
+  ggtitle("Moby Dick Chronological Polarity") +
+  theme_gdocs()
+```
+#Word impact, frequency analysis
+
+```{r}
+# Inner join without renamed columns
+moby_sents <- inner_join(moby, bing, by = c("term" = "word"))
+
+# Tidy sentiment calculation
+moby_tidy_sentiment <- moby_sents %>%
+  #count the frequency of sentiment(positive or negative) according to the column term
+  count(term, sentiment, wt = count) %>%
+  #spread sentiment(positive,negative), using n 
+  spread(sentiment, n, fill = 0) %>%
+  mutate(polarity = positive - negative)
+
+# Review
+moby_tidy_sentiment
+
+# Subset
+moby_tidy_small <- moby_tidy_sentiment %>% 
+  filter(abs(polarity) >= 50)
+
+# Add polarity
+moby_tidy_pol <- moby_tidy_small %>% 
+  mutate(
+    pol = ifelse(polarity>0, "positive", "negative")
+  )
+
+# Plot
+ggplot(
+  moby_tidy_pol, 
+  aes(x=reorder(term, polarity), y=polarity, fill = pol)
+) +
+  geom_bar(stat = "identity") + 
+  ggtitle("Moby Dick: Sentiment Word Frequency") + 
+  theme_gdocs() +
+  theme(axis.text.x = element_text(angle = 90, vjust = -.1))
+```
+#Divide & conquer: Using polarity for a comparison cloud
+
+```{r}
+library(qdap)
+library(tm)
+library(wordcloud)
+#oz_pol which was created by applying polarity()
+oz_pol <- read_csv("oz_pol.csv")
+
+# Add scores to each document line in a data frame
+oz_df <- oz_pol %>%
+  select(text = text.var, polarity = polarity)
+
+pol_subsections <- function(df) {
+  x.pos <- subset(df$text, df$polarity > 0)
+  x.neg <- subset(df$text, df$polarity < 0)
+  x.pos <- paste(x.pos, collapse = " ")
+  x.neg <- paste(x.neg, collapse = " ")
+  all.terms <- c(x.pos, x.neg)
+  return(all.terms)
+}
+
+# Custom function
+all_terms <- pol_subsections(oz_df)
+
+# Make a corpus
+all_corpus <- all_terms %>%
+  VectorSource() %>% 
+  VCorpus()
+
+# Basic TDM
+all_tdm <- TermDocumentMatrix(
+  all_corpus,
+  control = list(
+    removePunctuation = TRUE,
+    stopwords = stopwords(kind = "en")
+  )
+) %>%
+  as.matrix() %>%
+  set_colnames(c("positive", "negative"))
+
+# Make a comparison cloud
+comparison.cloud(
+  all_tdm,
+  max.words = 50,
+  colors = c("darkgreen", "darkred")
+)
+```
+#Emotional introspection
+
+```{r}
+head(nrc)
+head(moby)
+
+# Inner join
+moby_sentiment <- inner_join(moby, nrc, by=c("term"="word"))
+
+# Drop positive or negative
+moby_pos_neg <- moby_sentiment %>%
+  filter(!grepl("positive|negative", sentiment))
+
+# Count terms by sentiment then spread 
+moby_tidy <- moby_pos_neg %>% 
+  count(sentiment, term = term) %>% 
+  spread(sentiment, n, fill = 0) %>%
+  as.data.frame()
+  
+# Set row names
+rownames(moby_tidy) <- moby_tidy[, 1]
+
+# Drop terms column
+moby_tidy[, 1] <- NULL
+
+# Examine
+head(moby_tidy)
+
+# Comparison cloud
+comparison.cloud(moby_tidy, max.words = 50, title.size = 1.5)
+```
+#Compare & contrast stacked bar chart
+
+```{r}
+all_books <- readRDS("C:/Users/Y/Downloads/all_books.rds")
+
+# Review tail of all_books
+tail(all_books)
+
+two_books <- filter(all_books, book == c("moby_dick","huck_finn"))
+
+# Inner join
+books_sents <- inner_join(two_books, nrc, by=c("term"="word"))
+
+# Keep only positive or negative
+books_pos_neg <- books_sents %>%
+  filter(grepl("positive|negative", sentiment))
+
+# Review tail again
+tail(books_pos_neg)
+
+# Count by book & sentiment
+books_sent_count <- books_pos_neg %>%
+  count(book, sentiment)
+
+# Review entire object
+books_sent_count
+
+# Split, make proportional
+book_pos <- books_sent_count %>%
+  group_by(book) %>% 
+  mutate(percent_positive = n / sum(n) * 100)
+
+# Proportional bar plot
+ggplot(book_pos, aes(x = book, y = percent_positive, fill = sentiment)) +  
+  geom_bar(stat = "identity")
+```
+#Kernel density plot
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+
+ag <- read_csv("ag.csv")
+#afinn <- read_csv("afinn.csv")
+
+# Agamemnon inner join
+ag_afinn <- inner_join(ag, afinn)
+
+# Add book
+ag_afinn$book <- "agamemnon"
+
+# Oz inner join
+oz_afinn <- inner_join(oz, afinn)
+
+# Add book
+oz_afinn$book <- "oz"
+
+# Combine
+all_df <- rbind(ag_afinn, oz_afinn)
+
+# Plot 2 densities
+ggplot(all_df, aes(x = score, fill = book)) + 
+  geom_density(alpha = .3) + 
+  theme_gdocs() +
+  ggtitle("AFINN Score Densities")
+```
+#Box plot
+
+```{r}
+all_book_polarity <- readRDS("C:/Users/Y/Downloads/all_book_polarity.rds")
+head(all_book_polarity)
+
+# Examine
+str(all_book_polarity)
+
+# Summary by document
+tapply(all_book_polarity$polarity, all_book_polarity$book, summary)
+
+# Box plot
+ggplot(all_book_polarity, aes(x = book, y = polarity)) +
+  geom_boxplot(fill = c("#bada55", "#F00B42", "#F001ED", "#BA6E15"), col = "darkred") +
+  geom_jitter(position = position_jitter(width = 0.1, height = 0), alpha = 0.02) +
+  theme_gdocs() +
+  ggtitle("Book Polarity")
+```
+#Radar chart
+
+![Spread Function](C:/Users\Y\Documents\Sentiment_Analysis\spread.png)
+
+```{r}
+library(tidyr)
+install.packages("radarchart")
+library(radarchart)
+
+all_books <- readRDS("C:/Users/Y/Downloads/all_books.rds")
+
+# Review tail of all_books
+tail(all_books)
+
+moby_huck <- filter(all_books, book == c("moby_dick","huck_finn"))
+
+# Review tail of moby_huck
+tail(moby_huck)
+
+# Inner join
+books_sents <- inner_join(moby_huck, nrc, by=c("term"="word"))
+
+# Drop positive or negative
+books_pos_neg <- books_sents %>%
+  filter(!grepl("positive|negative", sentiment))
+
+# Tidy tally
+books_tally <- books_pos_neg %>%
+  group_by(book, sentiment) %>%
+  tally()
+
+# Key value pairs
+scores <- books_tally %>%
+  spread(book, n) 
+  
+# Review scores
+scores
+
+# JavaScript radar chart
+chartJSRadar(scores)
+```
+#Treemaps for groups of documents
+
+```{r}
+install.packages("treemap")
+library(treemap)
+head(afinn)
+head(all_books)
+
+books_score <- all_books %>% 
+  # Inner join with AFINN scores
+  inner_join(afinn, by=c("term"="word"))
+
+book_length <- books_score %>% 
+  # Count number of words per book
+  count(book)
+
+book_score <- books_score %>% 
+  # Group by author, book
+  group_by(author, book) %>%
+  # Calculate mean book score
+  summarize(mean_score = mean(score))
+
+book_tree <- book_score %>% 
+  # Inner join by book
+  inner_join(book_length, by="book")
+
+# Examine the results
+book_tree
+
+# Make the visual
+treemap(book_tree,
+        index = c("author", "book"),
+        vSize = "n",
+        vColor = "mean_score",
+        type = "value",
+        title = "Book Sentiment Scores",
+        palette = c("red", "white", "green"))
+```
+#Step 2: Identify Text Sources
+
+```{r}
+bos_reviews <- readRDS("C:/Users/Y/Downloads/bos_reviews.rds")
+
+# bos_reviews_file has been pre-defined
+bos_reviews_file <- "/usr/local/share/datasets/bos_reviews.csv"
+
+# load raw text
+#bos_reviews <- read.csv(bos_reviews_file, stringsAsFactors=FALSE)
+
+# Structure
+str(bos_reviews)
+
+# Dimensions
+dim(bos_reviews)
+
+#Summary
+summary(bos_reviews)
+
+#Head
+head(bos_reviews)
+```
+#Quickly examine the basic polarity
+
+```{r}
+library(qdap)
+bos_pol <- readRDS("C:/Users/Y/Downloads/bos_pol.rds")
+
+# Practice apply polarity to first 6 reviews
+practice_pol <- polarity(bos_reviews$comments[1:6])
+
+# Review the object
+practice_pol
+
+# Check out the practice polarity
+summary(practice_pol$all$polarity)
+
+# Summary for all reviews
+summary(bos_pol$all$polarity)
+
+# Plot it
+ggplot(bos_pol$all, aes(x = polarity, y = ..density..)) +
+  theme_gdocs() + 
+  geom_histogram(binwidth = 0.25, fill = "#bada55", colour = "grey60") +
+  geom_density(size = 0.75)
+```
+#Create a Polarity Based Corpora
+
+```{r}
+install.packages("dplyr")
+library(dplyr)
+library(qdap)
+library(tm)
+
+# Review
+bos_pol$all
+bos_reviews
+
+#structure
+str(bos_pol)
+
+# Add polarity column
+#bos_reviews_with_pol <- bos_reviews %>% 
+#  mutate(polarity = bos_pol$all$polarity)
+
+# Subset positive comments 
+pos_comments <- bos_pol$all %>% 
+  filter(polarity>0) %>% 
+  select(text.var)
+
+# Subset negative comments
+neg_comments <- bos_pol$all %>% 
+  filter(polarity<0) %>% 
+  select(text.var)
+
+# Paste and collapse the positive comments into a single document
+pos_terms <- paste(pos_comments, collapse = " ")
+
+# Paste and collapse the negative comments into a single document
+neg_terms <- paste(neg_comments, collapse = " ")
+
+# Concatenate the terms
+all_terms <- c(pos_terms, neg_terms)
+
+# Pipe a VectorSource Corpus
+all_corpus <- all_terms %>% 
+  VectorSource() %>% 
+  VCorpus()
+
+# Simple TFIDF TDM
+all_tdm <- TermDocumentMatrix(
+  all_corpus, 
+  control = list(
+    weighting = weightTfIdf, 
+    removePunctuation = TRUE, 
+    stopwords = stopwords(kind = "en")
+  )
+)
+
+# Examine the TDM
+all_tdm
+```
+#Create a Tidy Text Tibble!
+
+```{r}
+library(tidytext)
+
+# Vector to tibble
+tidy_reviews <- bos_reviews %>% 
+  unnest_tokens(word, comments)
+
+# Group by and mutate
+tidy_reviews <- tidy_reviews %>% 
+  group_by(id) %>% 
+  mutate(original_word_order = seq_along(word))
+
+# Quick review
+tidy_reviews
+
+# Load stopwords
+data("stop_words")
+
+# Perform anti-join
+tidy_reviews_without_stopwords <- tidy_reviews %>% 
+  anti_join(stop_words)
+```
+#Compare Tidy Sentiment to Qdap Polarity
+
+```{r}
+# Get the correct lexicon
+bing <- get_sentiments("bing")
+
+# Calculate polarity for each review
+pos_neg <- tidy_reviews %>% 
+  inner_join(bing) %>%
+  count(sentiment) %>%
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(polarity = positive - negative)
+
+# Check outcome
+summary(pos_neg)
+```
+#Assessing author effort
+
+```{r}
+# Review tidy_reviews
+tidy_reviews
+
+# Review pos_neg
+pos_neg
+
+# Create effort
+effort <- tidy_reviews %>%
+  count(id)
+
+# Inner join
+pos_neg_with_effort <- inner_join(pos_neg, effort)
+
+# Review 
+pos_neg_with_effort
+
+# Add pol
+pos_neg_pol <- pos_neg_with_effort %>%
+  mutate(
+    pol = ifelse(
+      polarity >= 0, 
+      "Positive", 
+      "Negative"
+    )
+  )
+
+# Plot
+ggplot(
+  pos_neg_pol, 
+  aes(polarity, n, color = pol)
+) + 
+  geom_point(alpha = 0.25) +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_gdocs() +
+  ggtitle("Relationship between word effort & polarity")
+```
+#Comparison Cloud
+
+```{r}
+library(wordcloud)
+
+# Matrix
+all_tdm_m <- as.matrix(all_tdm)
+
+# Column names
+colnames(all_tdm_m) <- c("positive","negative")
+
+# Top pos words
+order_by_pos <- order(all_tdm_m[, 1], decreasing = TRUE)
+
+# Review top 10 pos words
+all_tdm_m[order_by_pos, ] %>% head(n=10)
+
+# Top neg words
+order_by_neg <- order(all_tdm_m[, 2], decreasing = TRUE)
+
+# Review top 10 neg words
+all_tdm_m[order_by_neg, ] %>% head(n=10)
+
+# Comparison cloud
+comparison.cloud(
+  all_tdm_m, 
+  max.words = 20,
+  colors = c("darkgreen","darkred")
+)
+```
+#Scaled Comparison Cloud
+
+```{r}
+# Review
+bos_pol$all[1:6,1:3]
+
+# Scale/center & append
+bos_reviews$scaled_polarity <- scale(bos_pol$all$polarity)
+
+# Subset positive comments
+pos_comments <- subset(bos_reviews$comments, bos_reviews$scaled_polarity>0)
+
+# Subset negative comments
+neg_comments <- subset(bos_reviews$comments, bos_reviews$scaled_polarity < 0)
+
+# Paste and collapse the positive comments
+pos_terms <- paste(pos_comments, collapse = " ")
+
+# Paste and collapse the negative comments
+neg_terms <- paste(neg_comments, collapse = " ")
+
+# Organize
+all_terms<- c(pos_terms, neg_terms)
+
+# VCorpus
+all_corpus <- VCorpus(VectorSource(all_terms))
+
+# TDM
+all_tdm <- TermDocumentMatrix(
+  all_corpus, 
+  control = list(
+    weighting = weightTfIdf, 
+    removePunctuation = TRUE, 
+    stopwords = stopwords(kind = "en")
+  )
+)
+
+# Column names
+all_tdm_m <- as.matrix(all_tdm)
+colnames(all_tdm_m) <- c("positive", "negative")
+
+# Comparison cloud
+comparison.cloud(
+  all_tdm_m, 
+  max.words = 100,
+  colors = c("darkgreen", "darkred")
+)
+```
+#Step 6: Reach a conclusion
+
+```{r}
+
+```
+
