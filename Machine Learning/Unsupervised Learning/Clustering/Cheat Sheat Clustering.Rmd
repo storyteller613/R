@@ -1,0 +1,244 @@
+---
+title: "Cheat Sheet Clustering"
+output: html_notebook
+Author: Jeff Gross
+---
+##Packages
+```{r}
+install.packages("cluster.datasets")
+library(cluster.datasets)
+install.packages("dunn.test")
+library(dunn.test)
+install.packages("clValid")
+library(clValid)
+```
+
+###########
+#Clustering
+###########
+
+
+
+##kmeans
+```{r}
+seeds <- read_csv("~/R Scripts/seeds.csv")
+
+seeds_type <- c(1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
+1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	2,	2,	2,	2,
+2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,
+2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	3,	3,	3,	3,	3,	3,	3,	3,
+3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,
+3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3)
+
+# seeds and seeds_type are pre-loaded in your workspace
+
+# Set random seed. Don't remove this line.
+set.seed(100)
+
+# Do k-means clustering with three clusters, repeat 20 times: seeds_km
+seeds_km <- kmeans(seeds, nstart=20, center=3)
+
+# Print out seeds_km
+print(seeds_km)
+
+# Compare clusters with actual seed types. Set k-means clusters as rows
+table(seeds_km$cluster, seeds_type)
+str(seeds_km$cluster)
+str(seeds_type)
+
+# Plot the length as function of width. Color by cluster
+plot(y=seeds$length, x=seeds$width, col=seeds_km$cluster)
+```
+
+##The influence of starting centroids
+```{r}
+# seeds is pre-loaded in your workspace
+
+# Set random seed. Don't remove this line.
+set.seed(100)
+
+# Apply kmeans to seeds twice: seeds_km_1 and seeds_km_2
+seeds_km_1 <- kmeans(seeds,5,nstart=1)
+seeds_km_2 <- kmeans(seeds,5,nstart=1)
+
+# Return the ratio of the within cluster sum of squares
+seeds_km_1$tot.withinss/seeds_km_2$tot.withinss
+
+# Compare the resulting clusters
+table(seeds_km_1$cluster,seeds_km_2$cluster)
+```
+Well done! As you can see, some clusters remained the same, others have changed. For example, cluster 5 from seeds_km_1 completely contains cluster 1 from seeds_km_2 (33 objects). Cluster 4 from seeds_km_1 is split, 18 objects were put in seeds_km_2's fourth cluster and 41 in its fifth cluster. For consistent and decent results, you should set nstart > 1 or determine a prior estimation of your centroids.
+nstart: #times R restarts with different centroids-advise greater than 10
+
+##Making a scree plot!
+```{r}
+school_result <- read_csv("~/R Scripts/school_result.csv")
+
+# Set random seed. Don't remove this line.
+set.seed(100)
+
+# Explore the structure of your data
+str(school_result)
+
+# Initialise ratio_ss 
+ratio_ss <- rep(7)
+
+# Finish the for-loop. 
+for (k in 1:7) {
+  
+  # Apply k-means to school_result: school_km
+  school_km <- kmeans(school_result,k,nstart=20)
+  
+  # Save the ratio between of WSS to TSS in kth element of ratio_ss
+  ratio_ss[k] <- school_km$tot.withinss/school_km$totss
+  
+}
+
+# Make a scree plot with type "b" and xlab "k"
+plot(ratio_ss, type="b", xlab="k")
+```
+In this case, a "k"" of 4 or 4will provide a meaningful clustering with overall compact and well separated clusters.
+
+##Standardized vs non-standardized clustering
+
+##non-standardized clustering
+```{r}
+run_record <- read_csv("~/R Scripts/run_record_1.csv")
+
+
+# The dataset run_record has been loaded in your workspace
+
+# Set random seed. Don't remove this line.
+set.seed(1)
+
+# Explore your data with str() and summary()
+str(run_record)
+summary(run_record)
+
+# Cluster run_record using k-means: run_km. 5 clusters, repeat 20 times
+run_km <- kmeans(run_record, 5, nstart=20)
+
+# Plot the 100m as function of the marathon. Color using clusters
+plot(x=run_record$marathon, y=run_record$X100m, col=run_km$cluster, xlab="marathon", ylab="X100m")
+
+# Calculate Dunn's index: dunn_km. Print it.
+print(dunn_km <- dunn(clusters=run_km$cluster, Data=run_record))
+
+```
+Well done! As you can see in the plot, the unstandarized clusters are completely dominated by the marathon records; you can even separate every cluster only based on the marathon records! Moreover Dunn's index seems to be quite low. Compare your results with the standardized version in the next exercise
+
+##Standardized clustering
+```{r}
+# The dataset run_record as well as run_km are available
+
+# Set random seed. Don't remove this line.
+set.seed(1)
+
+# Standardize run_record, transform to a dataframe: run_record_sc
+run_record_sc <- as.data.frame(scale(run_record))
+
+# Cluster run_record_sc using k-means: run_km_sc. 5 groups, let R start over 20 times
+run_km_sc <- kmeans(run_record_sc, 5, nstart=20)
+
+# Plot records on 100m as function of the marathon. Color using the clusters in run_km_sc
+plot(x=run_record$marathon, y=run_record$X100m, col=run_km_sc$cluster, xlab="marathon", ylab="X100m")
+
+# Compare the resulting clusters in a nice table
+table(run_km$cluster, run_km_sc$cluster)
+
+# Calculate Dunn's index: dunn_km_sc. Print it.
+print(dunn_km_sc <- dunn(clusters=run_km_sc$cluster, Data=run_record_sc))
+```
+The plot now shows the influence of the 100m records on the resulting clusters! Dunn's index is clear about it, the standardized clusters are more compact or/and better separated!  Higher Dunn Index means the cluster are more compact and better separated from each other.
+
+#########################
+#Hierarchical Clustering
+#########################
+
+##Single Hierarchical Clustering
+```{r}
+run_record <- read_csv("~/R Scripts/run_record_2.csv")
+run_record
+rownames(run_record) <- run_record$Country
+run_record$Country <- NULL
+
+# Standardize run_record, transform to a dataframe: run_record_sc
+run_record_sc <- as.data.frame(scale(run_record))
+
+# The dataset run_record_sc has been loaded in your workspace
+
+# Apply dist() to run_record_sc: run_dist
+run_dist <- dist(run_record_sc)
+
+# Apply hclust() to run_dist: run_single
+run_single <- hclust(run_dist, method="single")
+
+# Apply cutree() to run_single: memb_single
+memb_single <- cutree(run_single, 5)
+
+# Apply plot() on run_single to draw the dendrogram
+plot(run_single)
+
+# Apply rect.hclust() on run_single to draw the boxes
+rect.hclust(run_single, border=2:6, 5)
+```
+it appears the two islands Samoa and Cook's Islands, who are not known for their sports performances, have both been placed in their own groups. Maybe, we're dealing with some chaining issues? Let's try a different linkage method.
+
+##Complete Hierarchical Clustering
+```{r}
+# run_record_sc is pre-loaded
+
+# Code for single-linkage
+run_dist <- dist(run_record_sc, method = "euclidean")
+run_single <- hclust(run_dist, method = "single")
+memb_single <- cutree(run_single, 5)
+plot(run_single)
+rect.hclust(run_single, k = 5, border = 2:6)
+
+# Apply hclust() to run_dist: run_complete
+run_complete <- hclust(run_dist, method = "complete")
+
+# Apply cutree() to run_complete: memb_complete
+memb_complete <- cutree(run_complete, 5)
+
+# Apply plot() on run_complete to draw the dendrogram
+plot(run_complete)
+
+# Apply rect.hclust() on run_complete to draw the boxes
+rect.hclust(run_complete, k = 5, border = 2:6)
+
+# table() the clusters memb_single and memb_complete. Put memb_single in the rows
+table(memb_single, memb_complete)
+```
+Compare the two plots. The five clusters differ significantly from the single-linkage clusters. That one big cluster you had before, is now split up into 4 medium sized clusters. Have a look at the table you generated as well!
+
+##Hierarchical vs k-means
+```{r}
+# run_record_sc, run_km_sc, memb_single and memb_complete are pre-calculated
+
+# Set random seed. Don't remove this line.
+set.seed(100)
+
+# Dunn's index for k-means: dunn_km
+dunn_km <- dunn(clusters=run_km_sc$cluster, Data=run_record_sc)
+
+# Dunn's index for single-linkage: dunn_single
+dunn_single <- dunn(clusters=memb_single, Data=run_record_sc)
+
+# Dunn's index for complete-linkage: dunn_complete
+dunn_complete <- dunn(clusters=memb_complete, Data=run_record_sc)
+
+# Compare k-means with single-linkage
+table(run_km_sc$cluster, memb_single)
+
+# Compare k-means with complete-linkage
+table(run_km_sc$cluster, memb_complete)
+
+dunn_km
+dunn_single
+dunn_complete
+```
+The table shows that the clusters obtained from the complete linkage method are similar to those of k-means.
+
+The single-linkage method that caused chaining effects, actually returned the most compact and separated clusters . If you think about, it can make sense. The simple linkage method puts every outlier in its own cluster, increasing the intercluster distances and reducing the diameters, hence giving a higher Dunn's index. Therefore, you could conclude that the single linkage method did a fine job identifying the outliers. However, if you'd like to report your clusters to the local newspapers, then complete linkage or k-means are probably the better choice!
+

@@ -1,0 +1,384 @@
+---
+title: "Intro to Statistics with R: Multiple Regression"
+output: html_notebook
+author:  Jeff Gross
+---
+
+##Multiple regression: visualization of the relationships
+
+Now that you have briefly looked at the data in the previous exercise, a good next step would be to get a view on the nature of the empirical relationships between the outcome variable (the annual salary of the professors) and two specific predictor variables (number of years as a faculty member and number of publications).
+
+Intuitively, one would expect that a professor with more working experience would earn more. In addition, it would also make sense that a faculty member with a larger expertise in terms of numbers of publications would have a higher salary as well. Let us see whether this holds in practice by getting visual confirmation by means of some scatter plots!
+
+```{r}
+options(tibble.print_max = Inf)
+options(tibble.width = Inf)
+
+# import fa
+fs <- read_csv("~/R Scripts/professor salary.csv")
+fs$dept = factor(fs$dept)
+str(fs$dept)
+
+# Perform the two single regressions and save them in a variable
+model_years <-lm(fs$salary ~ fs$years)
+model_pubs <- lm(fs$salary ~ fs$pubs)
+
+# Plot both enhanced scatter plots in one plot matrix of 1 by 2
+par(mfrow = c(1, 2))
+plot(formula(model_years), main = "plot_years", xlab = "years", ylab = "salary")
+abline(model_years)
+plot(formula(model_pubs), main = "plot_pubs", xlab = "pubs", ylab = "salary")
+abline(model_pubs)
+```
+
+##Multiple regression: model selection
+
+In the video, Professor Conway talked about the R2R2 coefficients of regression models. These coefficients are often used in practice to select the best regression model in case of competing models. The R2R2 coefficient of a regression model is defined as the percentage of the variation in the outcome variable that can be explained by the predictor variables of the model. In general, the R2R2 coefficient of a model increases when more predictor variables are added to the model. After all, adding more predictor variables to the model tends to increase the odds of explaining more variation in the outcome variable.
+
+Check this generality by comparing the R2R2 coefficient of a single regression model with that of a multiple regression model.
+
+```{r}
+# fs is available in your working environment
+
+# Do a single regression of salary onto years of experience and check the output
+model_1 <- lm(fs$salary ~ fs$years)
+summary(model_1)
+
+# Do a multiple regression of salary onto years of experience and numbers of publications and check the output
+model_2 <- lm(fs$salary ~ fs$years + fs$pubs)
+summary(model_2)
+
+# Save the R squared of both models in preliminary variables
+preliminary_model_1 <- summary(model_1)$r.squared
+preliminary_model_2 <- summary(model_2)$r.squared
+
+# Round them off while you save them in new variables
+r_squared <- c()
+r_squared[1] <- round(summary(model_1)$r.squared,3)
+r_squared[2] <- round(summary(model_2)$r.squared,3)
+
+# Print out the vector to see both R squared coefficients
+print(r_squared)
+```
+
+##Multiple regression: beware of redundancy
+
+Although the R2R2 coefficient of a regression model tends to increase in general when adding more predictor variables to the mix, more is not always better. Throwing in every variable at your disposal into a multiple regression is usually not a good idea. If the extra variables do not add extra value to the model -when the corresponding regression coefficients are not significantly different from zero- it tends to be a good practice to just leave them out.
+
+In the next example you will see that adding the age of the professors as an extra predictor value does not necessarily lead to a better econometric model, even though the R2R2 coefficient increases in the process. Hence, a good statistician should not blindly depend on the R2R2 coefficients while selecting relevant regression models.
+
+```{r}
+# fs is available in your working environment, just like the variables model_1, model_2 and r_squared that you created in the previous exercise
+
+# Do multiple regression and check the regression output
+model_3 <- lm(fs$salary ~ fs$years + fs$pubs + fs$age)
+summary(model_3)
+
+# Round off the R squared coefficients and save the result in the vector (in one step!)
+r_squared[3] <- round(summary(model_3)$r.squared,3)
+
+# Print out the vector in order to display all R squared coefficients simultaneously
+print(r_squared)
+```
+
+##Addition, subtraction and multiplication of matrices
+
+You can perform operations on matrices. Some operations put forward some requirements that need to be respected. For example, the addition or subtraction of two matrices is only possible if the matrices are of the same size or order. Elements with the same row and column number in the two matrices are added or subtracted and lead to a new matrix.
+
+The multiplication of two matrices is only possible when they are conformable: the number of columns of the first matrix must equal the number of rows of the second matrix:
+R=MT???N
+R=MT???N
+with MM a k-by-i matrix and NN a k-by-i matrix. Matrix MM and NN can not be multiplied since both matrices have an identical order. Taking the transpose of matrix MM leads to a solution: the two matrices are conformable.
+
+```{r}
+
+# import Matrix package 
+install.packages("Matrix")
+library(Matrix)
+
+# The matrices r and s are preloaded in your workspace
+
+r <- read_excel("~/R Scripts/matrices.xlsx", sheet = "r")
+s <- read_excel("~/R Scripts/matrices.xlsx", sheet = "s")
+
+r <- as.matrix(r)
+s <- as.matrix(s)
+
+# Compute the sum of matrices r and s
+operation_1 <- r + s
+
+# Compute the difference between matrices r and s
+operation_2 <- r - s
+
+# Multiply matrices t and s
+operation_3 <- t(r) %*% s
+```
+
+##Row vector of sums
+
+In the previous video, Professor Conway explained how you can go from a raw dataframe to a correlation matrix. Here you will construct such a correlation matrix yourself from scratch.
+
+In your R workspace, a raw dataframe X (a 10-by-3 matrix) is already loaded in. The first step is to sum up its 3 columns. In other words, we need to construct the row vector of sums:
+
+
+where T1pT1p the 1-by-p row vector of sums is, XnpXnp an n-by-p raw dataframe, and 11n11n a 1-by-n matrix of ones.
+
+```{r}
+# The raw dataframe X is already loaded in.
+X <- read_excel("~/R Scripts/matrices.xlsx", 
++     sheet = "X", col_names = FALSE)
+View(X)
+X <- read_csv("~/R Scripts/X.csv", col_names = FALSE)
+X <- as.matrix(X)
+
+# Construction of 1 by 10 matrix I of which the elements are all 1
+I <- matrix(nrow=1, ncol=10, 1:1)
+
+# Compute the row vector of sums
+t_mat <-I %*% X
+t_mat
+```
+
+##Row vector of means and matrix of means
+
+Now that you have the row vector of sums t_mat, a 1-by-3 matrix, you are ready to construct the row vector of means M via:
+
+M1p=T1pN???1
+M1p=T1pN???1
+with M1pM1p the 1-by-p row vector of means, T1pT1p the 1-by-p row vector of sums, and N???1N???1 the inverse number of observations for each variable.
+
+Given the row vector of means M, you can also construct the matrix of means MM by multiplying the row vector of means with a column vector:
+
+MMnp=1n1M1p
+MMnp=1n1M1p
+with MMnpMMnp the n-by-p matrix of means, M1pM1p the 1-by-p row vector of means, and 1n11n1 a n-by-1 column vector.
+```{r}
+# The data matrix `X` and the row vector of sums (`t_mat`) are saved and can be used.
+
+# Number of observations
+n = 10
+
+# Compute the row vector of means
+M <- t_mat * n^-1
+
+# Construction of 10 by 1 matrix J of which the elements are all 1
+J <- matrix(nrow=10, ncol=1, 1:1)
+
+# Compute the matrix of means
+MM <-J %*% M
+MM
+```
+
+##Matrix of deviation scores
+
+Why do you need a matrix of means? Because you want a matrix of deviation scores! You are interested in the deviation of an observation for that variable to its mean.
+
+As Prof. Conway showed in the video, the formula to calculate a matrix of deviation scores D is:
+
+Dnp=Xnp???MMnp
+Dnp=Xnp???MMnp
+where DnpDnp is an n-by-p deviation matrix, XnpXnp the n-by-p raw dataframe, and MMnpMMnp the n-by-p matrix of means (the one you calculated in the previous exercise).
+```{r}
+# The previously generated matrices X, M and MM do not need to be constructed again but are saved and can be used.
+
+# Matrix of deviation scores D
+D <- X - MM
+```
+##Sum of squares and sum of cross products matrix
+
+Ok, so you have reached the really cool part now ;-)
+
+If you now take your matrix of deviation scores D and multiply it with its transpose, just like prof. Conway did in the video, you get the matrix of sum of squares and sum of cross products S. The formula is:
+
+SXX=DTpnDnp
+SXX=DpnTDnp
+.
+
+with SXXSXX the matrix of sum of squares and sum of cross products, DTpnDpnT the transpose of the deviation matrix, and DnpDnp the n-by-p deviation matrix.
+
+```{r}
+# The previously generated matrices X, M, MM and D do not need to be constructed again but are saved and can be used.
+
+# Sum of squares and sum of cross products matrix
+S <-  t(D) %*% D
+```
+
+##Calculating the correlation matrix
+
+Almost at the finish line! Using the sums of squares and the sums of cross products matrix S you can calculate the variance-covariance matrix C:
+
+CXX=SXXN???1
+CXX=SXXN???1
+with CXXCXX the variance-covariance matrix, SXXSXX the matrix of sum of squares and sum of cross products, and N???1N???1 the inverse number of observations for each variable.
+
+Next, you can standardize this variance-covariance matrix by multiplying it with the standard deviation matrix SD. This gives us the correlation matrix R:
+
+RXX=(SDXX)???1CXX(SDXX)???1
+RXX=(SDXX)???1CXX(SDXX)???1
+with RXXRXX the correlation matrix, CXXCXX the variance-covariance matrix, and SDXXSDXX the standard deviation matrix.
+
+```{r}
+# The previously generated matrices X, M, MM, D and S do not need to be constructed again but are saved and can be used.
+n = 10
+
+# Construct the variance-covariance matrix
+C <- S * n^-1
+
+# Generate the standard deviations matrix
+SD <- diag(x = diag(C)^(1/2), nrow = 3, ncol = 3)
+
+# Compute the correlation matrix
+R <- solve(SD) %*% C %*% solve(SD)
+```
+
+##Starting off with Dummy Coding
+
+This chapter will teach you multiple methods to transform categorical variables into numerical variables by means of dummy coding. As such, you will be able to use these "dummies" alongside other numerical variables in multiple regressions. Additionally, a special version of dummy coding called "effects coding" will also be introduced at the end of the chapter.
+
+Again, you will use the dataset fs. Besides the independent variable, yearly wages (salary), and other characteristics of professors at a certain university, this dataset also contains a categorical variable (dept), that holds the information on the department that each professor belongs to. There are three departments: history (h), psychology (p) and sociology (s).
+
+As always, start off by exploring the data of each department in order to make sure that you get a good view of the data that you are working with.
+
+```{r}
+#package psych
+install.packages("psych")
+library(psych)
+
+# Summary statistics
+describeBy(fs, fs$dept)
+```
+
+##Creating dummy variables (1)
+
+In order to automatically create dummy variables, the dummy.code() function of the psych package is easy to use.
+
+The function takes a categorical variable as argument and automatically creates the required dummy variables: all levels are ranked alphabetically and the first one is taken as the reference group. Remember that only (N-1) dummies are created for a categorical variable with N levels. Consequently, the category which is not directly linked with a dummy variable is defined as the reference category.
+
+```{r}
+# fs is available in your working environment
+
+# Create the dummy variables
+dept_code <- dummy.code(fs$dept)
+print(dept_code)
+
+# Merge the dataset in an extended dataframe
+extended_fs <- cbind(dept_code,fs)
+
+# Look at the extended dataframe
+extended_fs
+
+# Provide summary statistics
+summary(extended_fs)
+```
+
+##Creating dummy variables (2)
+
+In order to include a categorical variable in a regression, the variable needs to be converted into a numeric variable by the means of a dummy variable. Previously, dummy variables have been generated using the intuitive, but less general dummy.code() function from the psych library.
+
+From this point onwards the contrast C() function is used to create dummy variables. Do not confuse this function with the c() function that is used to combine values in a vector or list. The contrast C() takes a categorical variable as a first argument and the treatment as a second argument. The latter tells R to rank all levels alphabetically and to take the first category as the reference group.
+
+This exercise will illustrate the inclusion of the categorical variable dept in a multiple regression. The code on the right estimates the regression without categorical variable. The summary() function is used to get the summary of the regression results of model and the confint() function is used to create the confidence intervals.
+
+```{r}
+
+# Regress salary against years and publications
+model <- lm(fs$salary ~ fs$years + fs$pubs)
+
+# Apply the summary function to get summarized results for model
+summary(model)
+
+# Compute the confidence intervals for model
+confint(model)
+
+# Create dummies for the categorical variable fs$dept by using the C() function
+dept_code <- C(fs$dept, contr=treatment)
+
+# Regress salary against years, publications and department
+model_dummy <- lm(fs$salary ~ fs$years + fs$pubs + dept_code)
+
+# Apply the summary function to get summarized results for model_dummy
+summary(model_dummy)
+
+# Compute the confidence intervals for model_dummy
+confint(model_dummy)
+```
+##Model selection: ANOVA
+
+In a next step, we would like to test if the inclusion of the categorical variable in the model improves the fit. The dataset fs and regressions model and model_dummy are available in your workspace. The anova() function compares both models and reports whether or not the models differ in a significant way.
+
+If the inclusion of the categorical variable effectively improves the fit, one might wonder to which extent the specific departments differ from each other.
+
+```{r}
+# The dataset fs and regressions model and model_dummy are available in your workspace
+
+# Compare model 4 with model 3
+anova(model, model_dummy)
+```
+
+##Discrepancy between actual and predicted means
+
+To see what role that the department plays in explaining the professors' salary, you can take a look at the actual differences in mean salary among departments.
+
+In order to compute the actual means of the salaries for each department easily, use the tapply() function, in which you enter the variable, the categorical variable and the requested summary statistic (that is, the mean).
+
+```{r}
+# fs is still available in your working environment
+
+# Actual means of fs$salary
+tapply(fs$salary, fs$dept, mean)
+```
+
+##Unweighted effects coding
+
+Professor Conway mentions effects coding as an interesting dummy coding scheme. In the effects coding scheme, a reference category still needs to be appointed but this time the reference category gets a weight - 1. The number of dummies that must be generated equals "the number of levels - 1". The effects coding scheme for a categorical variable with 4 levels of which the fourth category is picked out as the reference category, is shown below:
+
+This type of effects coding is called unweighted effects coding since the number of observations within each category of the variable is not taken into account.
+
+In the following steps, you will learn to set up a regression by using the unweighted effects coding scheme for a categorical variable. In the example, the dependent variable salary is regressed against the independent variable dept. The data is already loaded in the workspace under the name fs.
+
+```{r}
+# The dataframe fs is still loaded in
+
+# Number of levels
+fs$dept
+
+# Factorize the categorical variable fs$dept and name the factorized variable dept.f
+dept.f <- factor(fs$dept)
+
+# Assign the 3 levels generated in step 2 to dept.f
+contrasts(dept.f) <-contr.sum(3)
+
+# Regress salary against dept.f
+model_unweighted <- lm(fs$salary ~ dept.f)
+
+# Apply the summary() function
+summary(model_unweighted)
+```
+
+##Weighted effects coding
+
+Weighted effects coding differs from unweighted effects coding with respect to the weights, fractions. A reference category is chosen and the weights form the following dummy coding scheme:
+
+with n = the number of observations of each group and index N = the number of levels. The weights represent the number of observation of a non-reference category relative to those of the reference category.
+
+If the weights are computed, the regression of the dependent variable against the non-categorical and categorical variables using the weighted effects coding scheme can start.
+
+```{r}
+weight <- matrix(c(-1.25,-1.321429,1.25,0,0,1.321429),byrow=TRUE,nrow=3)
+colnames(weight) <- c("w1", "w2")
+weight
+
+# Factorize the categorical variable fs$dept and name the factorized variable dept.g
+dept.g <- factor(fs$dept)
+
+# Assign the weights matrix to dept.g
+contrasts(dept.g) <- weight
+View(weights)
+
+# Regress salary against dept.f and apply the summary() function
+model_weighted <- lm(fs$salary ~ dept.g)
+
+# Apply the summary() function
+summary(model_weighted)
+```
+

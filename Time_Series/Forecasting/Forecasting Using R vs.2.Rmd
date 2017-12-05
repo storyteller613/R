@@ -1,0 +1,90 @@
+---
+title: "Forecasting using R"
+author: Jeff Gross
+output: html_notebook
+---
+
+#Libraries
+
+```{r}
+install.packages("forecast")
+library(forecast)
+
+install.packages("ggplot2")
+library(ggplot2)
+
+install.packages("fpp2")
+library(fpp2)
+
+```
+
+#Creating time series objects in R 
+
+```{r}
+library(tibble)
+library(readxl)
+
+#mydata <- read_excel("R_Scripts/Time_Series/Forecasting/exercise1.xlsx", col_types = c("date", "numeric", "numeric", "numeric"))
+
+# Look at the first few lines of mydata
+head(mydata)
+
+# Create a ts object called myts
+myts <- ts(mydata[-1], start = c(1981, 1), frequency = 4)
+
+head(myts)
+```
+#Time series plots
+
+```{r}
+# Plot the data with facetting
+autoplot(myts, facets = TRUE)
+
+# Plot the data without facetting
+autoplot(myts, facets = FALSE)
+
+# Plot the three series
+autoplot(gold, facets = FALSE)
+autoplot(woolyrnq, facets = FALSE)
+autoplot(gas, facets = FALSE)
+
+# Find the outlier in the gold series
+goldoutlier <- which.max(gold)
+
+# Look at the seasonal frequencies of the three series
+frequency(gold)
+frequency(woolyrnq)
+frequency(gas)
+```
+#Seasonal plots
+
+###A seasonal plot is similar to a time plot except that the data are plotted against the individual "seasons" in which the data were observed.: ggseasonplot()
+
+###window() function, which extracts a subset from the object x observed between the times start and end.
+###window(x, start = NULL, end = NULL)
+
+```{r}
+# Load the fpp2 package
+library(fpp2)
+
+# Create plots of the a10 data
+autoplot(a10, polar=TRUE)
+ggseasonplot(a10)
+
+# Produce a polar coordinate season plot for the a10 data
+ggseasonplot(a10, polar = TRUE)
+
+# Restrict the ausbeer data to start in 1992
+beer <- window(ausbeer, start=1992)
+
+# Make plots of the beer data
+autoplot(beer)
+ggsubseriesplot(beer)
+```
+
+
+
+
+
+
+

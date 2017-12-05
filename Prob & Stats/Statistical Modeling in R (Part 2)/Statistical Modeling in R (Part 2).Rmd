@@ -1,0 +1,719 @@
+---
+title: "Statistical Modeling in R (Part 2)"
+output: html_notebook
+author: Jeff Gross
+---
+
+```{r}
+options(tibble.print_max = Inf)
+options(tibble.width = Inf)
+
+install.packages("mosaicData")
+library(mosaicData)
+install.packages("ggplot2")
+library(ggplot2)
+install.packages("statisticalModeling")
+library(statisticalModeling)
+install.packages("mosaic")
+library(mosaic)
+install.packages("dplyr")
+library(dplyr)
+# Load rpart
+library(rpart)
+library(readr)
+install.packages("statisticalModeling")
+library(statisticalModeling)
+install.packages("rpart.plot")
+library(rpart.plot)
+```
+Graphing a model of house prices
+100xp
+In this exercise, you'll use the Houses_for_sale data to build a model that corresponds to the graphic shown. You'll have to figure out what are the response and explanatory variables from the axis and facet labels shown in the plot.
+
+You can try both the linear architecture and the recursive partitioning architecture to see which one was used.
+
+Recall the syntax for fmodel() is:
+
+fmodel(model_object, ~ x_var + color_var + facet_var)
+```{r}
+# Build your model
+my_model <- rpart(price ~ living_area + bathrooms +    pct_college, data = Houses_for_sale)
+
+# Graph the model
+fmodel(my_model, ~ living_area +bathrooms + pct_college)
+```
+Eager runners
+100xp
+In this exercise, you're going to build a model of the starting position of a runner in the Cherry Blossom race as a function of age, sex, and nruns.
+
+model_1 <- rpart(start_position ~ age + sex + nruns, 
+                 data = Runners, cp = 0.001)
+Then, you'll evaluate the model in two different ways:
+
+as_class <- evaluate_model(model_1, type = "class")
+as_prob  <- evaluate_model(model_1)
+The second evaluation (as_prob) gives the probability assigned by the model to each class. Note that for each set of inputs, the probabilities add to 1.
+
+How do the probabilities in as_prob relate to the class selected in as_class?
+```{r}
+model_1 <- rpart(start_position ~ age + sex + nruns, data = Runners, cp = 0.001)
+as_class <- evaluate_model(model_1, type = "class")
+as_class
+as_prob  <- evaluate_model(model_1)
+View(as_prob)
+```
+Who are the mellow runners?
+100xp
+When the response variable is categorical, effect sizes are calculated using the probability of each possible output class. Since an effect size compares the model outputs for two different levels of the explanatory variables, each effect size is a difference in probability. Positive numbers mean that the probability increases from the base level to the to: level; negative numbers mean the the probability decreases.
+
+Note that across all the response levels, the effect sizes add to zero. That's because probability is being shifted from one level to another.
+```{r}
+# Train this model of start_position
+model_1 <- rpart(start_position ~ age + sex + nruns, 
+                 data = Runners, cp = 0.001)
+
+# Calculate effect size with respect to sex
+effect_size(model_1, ~ sex)
+
+# Calculate effect size with respect to age
+effect_size(model_1, ~ age)
+
+# Calculate effect size with respect to nruns
+effect_size(model_1, ~ nruns)
+```
+##Smoking and survival
+
+There's a very important special case for classification: when the response variable has only two levels. Of course, you can use the recursive partitioning architecture, but it's much more common in the two-level situation to use a technique known as logistic regression. This course features lm() and rpart(), but it would be remiss not to mention logistic regression.
+
+In this exercise, you'll look at the effect size of smoking on survival. The data used for modeling are in the Whickham dataset, which gives a small part of the data collected in the early 1970's. Participants were asked their age and whether they smoke. A follow-up twenty years later found whether the participant was still alive.
+
+We're interested to find the effect size of smoking on survival.
+```{r}
+# An rpart model
+mod1 <- rpart(outcome ~ age + smoker, data = Whickham)
+
+# Logistic regression
+mod2 <- glm(outcome == "Alive" ~ age + smoker, 
+            data = Whickham, family = "binomial")
+
+# Visualize the models with fmodel()
+fmodel(mod1, ~ age + smoker)
+fmodel(mod2, ~ age + smoker)
+
+# Find the effect size of smoker
+effect_size(mod1, ~ smoker)
+effect_size(mod2, ~ smoker)
+```
+With and without an interaction term
+100xp
+In the linear model architecture, you specify an interaction between two explanatory variables by using * notation rather than +.
+
+In this exercise, you'll compare models of birth weight as a function of gestational period and the mother's smoking status. One model will not have an interaction between the two and the other will.
+
+Recall that an interaction describes how one explanatory variable (e.g. smoke) changes the effect size of the other (e.g. gestation).
+```{r}
+# Build the model without interaction
+model_1 <- lm(baby_wt ~ gestation + smoke, data=Birth_weight)
+
+# Build the model with interaction
+model_2 <- lm(baby_wt ~ gestation * smoke, data=Birth_weight)
+
+# Plot each model
+fmodel(model_1) + ggplot2::ylab("baby_wt")
+fmodel(model_2) + ggplot2::ylab("baby_wt")
+```
+Mileage and age interacting
+100xp
+Here's a model you have already seen for the prices of used cars:
+
+model_1 <- lm(Price ~ Age + Mileage, 
+              data = Used_Fords)
+Your task...
+
+Instructions
+Train model_1 as given above.
+Train model_2 the same as model_1, but including an interaction between Age and Mileage.
+Use fmodel() to plot both models. How are they different?
+Use cross validation to compare the prediction errors of model_1 and model_2.
+```{r}
+# Train model_1
+model_1 <- lm(Price ~ Age + Mileage,  data = Used_Fords)
+
+# Train model_2
+model_2 <- lm(Price ~ Age * Mileage,  data = Used_Fords)
+
+# Plot both models
+fmodel(model_1)
+fmodel(model_2)
+
+# Cross validate and compare prediction errors
+res <- cv_pred_error(model_1, model_2)
+t.test(mse ~ model, data = res)
+```
+Another bedroom?
+100xp
+In previous exercises, you looked at some features that influence house prices: living area, number of bathrooms, etc. In this exercise, you'll explore the surprising impact of bedrooms and see how to avoid a potentially misleading conclusion. If you want, you can check out another supplemental video here, where I give a real-life example of partial and total change.
+
+Instructions
+Train a linear architecture model for price in the Houses_for_sale data, using land_value, living_area, fireplaces, bathrooms and bedrooms as explanatory variables.
+Calculate the effect size of living area.
+Calculate the effect size of bathrooms. Use argument step = 1 to increment bathrooms by 1.
+Calculate the effect size of bedrooms, also with step = 1. The result here may strike you as counter intuitive. Think about what it might mean in terms of an actual house to add a bedroom without adding living area.
+Train another linear model, this time arranging to let living_area change as it will with the other variables.
+For the new model, what's the effect size of bedrooms? Use step = 1 again.
+```{r}
+# Train a model of house prices
+price_model_1 <- lm(price ~ land_value + living_area + fireplaces + bathrooms + bedrooms, 
+                    data = Houses_for_sale)
+
+# Effect size of living area
+effect_size(price_model_1, ~ living_area)
+
+# Effect size of bathrooms
+effect_size(price_model_1, ~ bathrooms, step = 1)
+
+# Effect size of bedrooms
+effect_size(price_model_1, ~ bedrooms, step = 1)
+
+# Let living_area change as it will
+price_model_2 <- lm(price ~ land_value + fireplaces + bathrooms + bedrooms, 
+                    data = Houses_for_sale)
+
+# Effect size of bedroom in price_model_2
+effect_size(price_model_2, ~ bedrooms, step = 1)
+```
+Calculating total change
+70xp
+In the previous exercise, you built a model of house prices that left out a clearly important variable: living_area. You did this so you could let living_area change as it will when a bedroom is added to a house. In this exercise, you'll add living_area back as an explanatory variable, and be explicit in evaluating the model by defining what we mean by "add a bedroom".
+
+For the purposes of the exercise, you'll take "add a bedroom" to mean adding 140 square feet to the living area. (For instance, as when renovating the attic to turn it into a bedroom.)
+
+Instructions
+Run the code given to you to train price_model that includes living_area as a covariate.
+Evaluate the model at a baseline scenario: a living_area of 2000 sq. feet, 2 bedrooms, and 1 bathroom, specified by the bathrooms variable. As for the other explanatory variables, you can pick any level you like or just let evaluate_model() choose a set of levels for you.
+Evaluate the model again, but with living_area at 2140 and 3 bedrooms. Leave bathroom at 1.
+Looking at the outputs of your evaluate_model() calls, find the difference in prices to see the effect of adding 140 sq. feet of living space and another bedroom. Remember, you want to isolate the effects of the living_area and bedrooms variables, so all other variables should be equivalent when making your comparison.
+Run a third scenario by adding to the baseline scenario 165 sq. feet to living area, a third bedroom, and another half bathroom. (165 is 140 sq feet for the bedroom itself plus another 25 for the half-bath.)
+How does this better-equipped new bedroom change the model price? Calculate the price difference between the third scenario and the baseline scenario.
+```{r}
+# Train a model of house prices
+price_model <- lm(price ~ land_value + living_area + fireplaces + 
+                    bathrooms + bedrooms, data = Houses_for_sale)
+
+# Evaluate the model in scenario 1
+evaluate_model(price_model, living_area = 2000, bedrooms = 2, bathrooms = 1)
+
+# Evaluate the model in scenario 2
+evaluate_model(price_model, living_area = 2140, bedrooms = 3, bathrooms = 1)
+
+# Find the difference in output
+price_diff <- 184050.4 - 181624.0 
+
+# Evaluate the second scenario again, but add a half bath
+evaluate_model(price_model, living_area = 2165, bedrooms = 3, bathrooms = 1.5)
+
+# Calculate the price difference
+new_price_diff <- 199030.3 - 181624.0
+```
+Car prices
+100xp
+Two important factors in determining the price of a used car are age and mileage. In this exercise, you'll compare how price depends on age, using two models and three evaluation techniques.
+
+Instructions
+Using the Used_Fords dataset (in statisticalModeling), train a linear model of price as a function of both age and mileage.
+Calculate the partial effect size of age (holding mileage constant, as effect_size() does.)
+Calculate the total effect size of price and mileage by comparing the model output in two scenarios: (1) age 6 and mileage 42000, (2) age 7 and mileage 50000.
+Train a new model of price using only age as an explanatory variable.
+Calculate the partial effect size of age in the new model. Is this more similar to the partial effect of age in the first model, or the total effect of age and mileage in the first model?
+```{r}
+# Fit model
+car_price_model <- lm(Price ~ Age + Mileage, data = Used_Fords)
+
+# Partial effect size
+effect_size(car_price_model, ~ Age)
+
+# To find total effect size
+evaluate_model(car_price_model, Age = 6, Mileage = 42000)
+evaluate_model(car_price_model, Age = 7, Mileage = 50000)
+
+# Price difference between scenarios (round to nearest dollar)
+price_difference <- 8400 - 9524
+
+# Effect for age without mileage in the model
+car_price_model_2 <- lm(Price ~ Age, data = Used_Fords)
+
+# Calculate partial effect size
+effect_size(car_price_model_2, ~ Age)
+```
+Calculating R-squared
+100xp
+The R-squared of a model evaluated on input data is the variance of the model output divided by the variance of the response variable in the input data. Note that to calculate R-squared, you need input data that has the actual value of the response variable. The training data are used for this purpose.
+
+The code provided in the editor reminds you how to calculate prediction errors and how to find the variance of the response variable in the input data. Use these two calculations to find R-squared for each of the models.
+
+Instructions
+Train the three models provided in the editor.
+Evaluate each of the models on its own training data.
+Find the ratio of the variance of model output to the variance of the actual response values.
+```{r}
+College_grades <- read_csv("~/R Scripts/College_grades.csv")
+
+# Train some models
+model_1 <- lm(gradepoint ~ sid, data = College_grades)
+model_2 <- lm(Cost ~ Age + Sex + Coverage, data = AARP)
+model_3 <- lm(vmax ~ group + (rtemp + I(rtemp^2)), data = Tadpoles)
+
+# Calculate model output on training data
+output_1 <- evaluate_model(model_1, data = College_grades)
+output_2 <- evaluate_model(model_2, data = AARP)
+output_3 <- evaluate_model(model_3, data = Tadpoles)
+
+# R-squared for the models
+with(output_1, var(model_output) / var(gradepoint))
+with(output_2, var(model_output) / var(Cost))
+with(output_3, var(model_output) / var(vmax))
+```
+Warming in Minneapolis?
+70xp
+The data frame HDD_Minneapolis records the temperatures in Minneapolis, Minnesota, USA, for more than 100 years. A "heating-degree day" is the number of degrees below 65 degrees Fahrenheit each day.
+
+HDD_Minneapolis sums the heating-degree days for all the days in each month. Thus, winter months have much higher hdd than summer months.
+
+Instructions
+Train the models provided in the editor.
+Evaluate the models using the training data as input.
+Calculate R-squared for each model by comparing the variance of the model output to the variance of the actual response variable. To think about: the model hdd ~ month captures the large majority of variance in the hdd variable. What common sense explanation is there for this?
+```{r}
+# The two models
+model_1 <- lm(hdd ~ year, data = HDD_Minneapolis)
+model_2 <- lm(hdd ~ month, data = HDD_Minneapolis)
+
+# Find the model output on the training data for each model
+output_1 <- evaluate_model(model_1, data = HDD_Minneapolis)
+output_2 <- evaluate_model(model_2, data = HDD_Minneapolis)
+
+# Find R-squared for each of the 2 models
+with(output_1, var(model_output) / var(hdd))
+with(output_2, var(model_output) / var(hdd))
+```
+R-squared goes up
+0xp
+Recall that R-squared is the variance in the model output divided by the variance in the actual response values. It is almost always calculated on the training data.
+
+In cross validation, we use a training dataset to train the model and a separate testing dataset to evaluate the model performance. This is because model performance tends to look better on the training data than on new cases and we're often interested in anticipating the performance on new data rather than the training data. Using cross validation allows us to compare the performance of different models in a fair way.
+
+Similarly, R-squared can be difficult to use to compare different models. In this exercise, you'll see that R-squared goes up as new explanatory variables are added, even if those explanatory variables are meaningless. In this supplementary video, I give an example of how to interpret R-squared values. Go ahead and watch it if you'd like!
+
+Instructions
+Train model_1 with the formula wage ~ sector on the Training data using an lm() architecture.
+Train model_2 the same as model_1, but add the variable bogus to the formula. bogus contains a set of completely meaningless random variables.
+Calculate R-squared for both models. Note that R-squared goes up substantially from model_1 to model_2, even though bogus has no predictive value.
+To get a fair comparison of the predictive performance of the models, compare the cross-validated mean square errors for model_1 and model_2 with a boxplot(). Note that the prediction error for model_2 is worse than for model_1. Adding random junk as explanatory variables actually worsens predictions, but R-squared doesn't show this.
+```{r}
+# Train model_1 without bogus
+model_1 <- lm(wage ~ sector, data = Training)
+
+# Train model_2 with bogus
+model_2 <- lm(wage ~ sector + bogus, data = Training)
+
+# Calculate R-squared using the training data
+output_1 <- evaluate_model(model_1, data = Training)
+output_2 <- evaluate_model(model_2, data = Training)
+with(output_1, var(model_output) / var(wage))
+with(output_2, var(model_output) / var(wage))
+
+# Compare cross-validated MSE
+boxplot(mse ~ model, data = cv_pred_error(model_1, model_2))
+```
+Is bigger R-squared better? (1)
+100xp
+In the previous exercise, you counted degrees of freedom for each term in a model formula.
+
+In this exercise, you'll be able to read the degrees of freedom directly from the formula, with hardly any arithmetic at all. The reason? You're going to use the function rand() (from the mosaic package), which generates an "explanatory" variable with any specified degrees of freedom.
+
+The word "explanatory" is in quotes because the variable is composed of random numbers and hence can't offer any genuine explanation at all. You'll use this to explore what happens to R-squared as the degrees of freedom of a model increase.
+
+Instructions
+Train the five models shown in the editor. The models will have 1 (i.e. null model), 100, 200, and 300 degrees of freedom, respectively.
+Evaluate those models on the training data. (Use on_training = TRUE as shown.)
+
+Is bigger R-squared better? (2)
+100xp
+In the last exercise, you built and evaluated models with different degrees of freedom by purposefully adding random terms. Now, you'll observe the impact that increasing the degrees of freedom has on R-squared and compare that to the cross-validated prediction error.
+
+Instructions
+model_0 and model_3 from the last exercise, along with the model output from all four models, are available in your workspace.
+
+Calculate R-squared for each of the four models. Observe the pattern of R-squared increasing as the degrees of freedom increase.
+Use cross validation to get a fair estimate of testing data prediction error for model_0 and model_3. Does adding random terms help with predictions on testing data? (Note that we're using the argument ntrials = 3 vs. the default of 5 to speed up the computation slightly.)
+```{r}
+# Train the four models
+model_0 <- lm(wage ~ NULL, data = CPS85)
+model_1 <- lm(wage ~ mosaic::rand(100), data = CPS85)
+model_2 <- lm(wage ~ mosaic::rand(200), data = CPS85)
+model_3 <- lm(wage ~ mosaic::rand(300), data = CPS85)
+
+# Evaluate the models on the training data
+output_0 <- evaluate_model(model_0, on_training = TRUE)
+output_1 <- evaluate_model(model_1, on_training = TRUE)
+output_2 <- evaluate_model(model_2, on_training = TRUE)
+output_3 <- evaluate_model(model_3, on_training = TRUE)
+
+# Compute R-squared for each model
+with(output_0, var(model_output) / var(wage))
+with(output_1, var(model_output) / var(wage))
+with(output_2, var(model_output) / var(wage))
+with(output_3, var(model_output) / var(wage))
+
+# Compare the null model to model_3 using cross validation
+cv_results <- cv_pred_error(model_0, model_3, ntrials = 3)
+boxplot(mse ~ model, data = cv_results)
+```
+Accidental "perfection"
+100xp
+It often happens that you'll include extra degrees of freedom in a model by accident, so watch out. One way that this might occur is when a variable that's intended to be quantitative is instead treated as categorical (perhaps because there's a non-numeric entry for a categorical variable.)
+
+In this exercise, you'll simulate this by converting year in the HDD_Minneapolis data to a categorical level.
+
+Instructions
+Build model_1 with formula hdd ~ year * month, a linear architecture, and the HDD_Minneapolis dataset.
+Find the R-squared of that model. It's very high mainly because month tells a lot about temperature.
+Change the year column in HDD_Minneapolis to a categorical variable with as.character().
+Create model_2 to be the same as model_1, but with categorical_year in place of year.
+Find the R-squared of model_2. Although year has just one degree of freedom, categorical_year has more than 100!
+```{r}
+# Train this model with 24 degrees of freedom
+model_1 <- lm(hdd ~ year * month, data = HDD_Minneapolis)
+
+# Calculate R-squared
+output_1 <- evaluate_model(model_1, data = HDD_Minneapolis)
+with(output_1, var(model_output) / var(hdd))
+
+# Oops! Numerical year changed to categorical
+HDD_Minneapolis$categorical_year <- as.character(HDD_Minneapolis$year)
+
+# This model has many more degrees of freedom
+model_2 <- lm(hdd ~ categorical_year * month, data = HDD_Minneapolis)
+
+# Calculate R-squared
+output_2 <- evaluate_model(model_2, data = HDD_Minneapolis)
+with(output_2, var(model_output) / var(hdd))
+```
+A bootstrap trial
+
+In this exercise, you'll construct one bootstrapping trial "by hand" so that you can see the basic elements involved. At the starting point, you already have the following:
+
+A data frame
+A model trained on that data frame
+Some quantity such as an effect size that you've computed from the model
+Now you...
+
+Use sampling with replacement to generate a new data frame. Each case (i.e. row) is a genuine case from the original data, but some cases will be repeated and some omitted.
+Train a new model with the same architecture and model formula on the resampled data frame you constructed in step 1.
+Calculate the same quantity (e.g. effect size), but using the new model from step 2.
+The code in the editor gives the three starting elements. Steps 2 and 3 are already familiar to you, so you'll focus on step 1 here.
+
+Instructions
+For practice, use sample() on the set 1:10. Make sure to use the argument replace = TRUE. The default sample size is the number of elements in the set.
+Confirm that you have produced a resample. It should have the same number of elements (ten) as the original set. Among these will be some repeats and therefore some elements from the original set will be omitted.
+Do the same thing on the set 1:nrow(CPS85) to produce a set of indices that indicate which cases from CPS85 are to go into the data frame being produced in step 1.
+Use those indices to extract the appropriate cases from CPS85 into a new data frame.
+Complete steps 2 and 3.
+```{r}
+# Two starting elements
+model <- lm(wage ~ age + sector, data = CPS85)
+effect_size(model, ~ age)
+
+# For practice
+my_test_resample <- sample(1:10, replace = TRUE)
+my_test_resample
+
+# Construct a resampling of CPS85
+trial_1_indices <- sample(1:nrow(CPS85), replace = TRUE)
+trial_1_data <- CPS85[trial_1_indices, ]
+
+# Train the model to that resampling
+trial_1_model <- lm(wage ~ age + sector, data = trial_1_data)
+
+# Calculate the quantity 
+effect_size(trial_1_model, ~ age)
+```
+From a bootstrap ensemble to the standard error
+100xp
+In the previous exercise, you constructed one resampling trial to get a rough idea of how the effect size of age on wage might have varied had a different random sample of the original population been used. In practice, one carries out many such trials in order to sketch out the resampling distribution.
+
+Of course, you could use a loop to program the carrying out of repeated trials. However, the operation is so common that the statisticalModeling package provides a function to do this, called ensemble(). An ensemble is a collection of trials. Each of the trials contained in the output of ensemble() consists of a resampled data frame and a model trained on that data frame. Once you have this, you can calculate the numerical quantity of interest on each of the trials in order to see the resampling distribution.
+
+The code in the editor starts you out with a model, wage ~ age + sector, trained on the CPS85 data.
+
+Instructions
+Use ensemble() to create 10 resampling trials. Note that ensemble() takes as input the original model, which provides all the information needed to create the trials.
+Use effect_size() to find the effect size of age on wage. View the results to get a sense of how much variation there is from trial to trial.
+In practice, it's common to construct resampling ensembles of 100 to 500 trials. Do so.
+Use effect_size() on the bigger set of trials.
+Calculate the standard deviation of the effect size. This is the bootstrapped estimate of the standard error of the effect size, a measure of the precision of the quantity calculated on the original model.
+```{r}
+# Model and effect size from the "real" data
+model <- lm(wage ~ age + sector, data = CPS85)
+effect_size(model, ~ age)
+
+# Generate 10 resampling trials
+my_trials <- ensemble(model, nreps = 10)
+
+# Find the effect size for each trial
+effect_size(my_trials, ~ age)
+
+# Re-do with 100 trials
+my_trials <- ensemble(model, nreps = 100)
+trial_effect_sizes <- effect_size(my_trials, ~ age)
+
+# Calculate the standard deviation of the 100 effect sizes
+sd(trial_effect_sizes$slope)
+```
+Example: fireplaces
+100xp
+The code in the editor trains a model of house price as a function of land value, living area, and fireplaces. It then calculates the effect size of fireplaces.
+
+Your task is to find the resampling distribution of that effect size.
+
+Instructions
+Generate 100 resampling trials.
+On each of the trials, calculate the effect size of fireplaces on price.
+Make a histogram to show the distribution of effect sizes.
+Recall that the standard error of the effect size is the standard deviation of the effect size found across the resampling trials. Calculate the standard error of the effect sizes in the trials.
+```{r}
+# An estimate of the value of a fireplace
+model <- lm(price ~ land_value + fireplaces + living_area, 
+            data = Houses_for_sale)
+effect_size(model, ~ fireplaces)
+
+# Generate 100 resampling trials
+trials <- ensemble(model, nreps = 100)
+
+# Calculate the effect size in each of the trials
+effect_sizes_in_trials <- effect_size(trials, ~ fireplaces)
+
+# Show a histogram of the effect sizes
+hist(effect_sizes_in_trials$slope)
+
+# Calculate the standard error
+sd(effect_sizes_in_trials$slope)
+```
+Typical values of data
+100xp
+Let's revisit the model of life insurance cost as a function of age, sex, and coverage that you saw in the first chapter. The model, shown in the plot, is log(Cost) ~ Age + Sex + Coverage.
+
+You can see from the plot that the data show a curving, exponential increase in cost with age. This is a hint that it might be appropriate to model the logarithm of cost instead of modeling cost directly.
+
+Instructions
+Build a linear model, mod_1, with log(Cost) as the response and Age + Sex + Coverage on the explanatory side. Graph the model to see how well it matches the data.
+Build mod_2 the same as mod_1, but with an interaction between Age and Sex.
+Build mod_3 the same as mod_2, but replace Coverage with log(Coverage).
+Finally, build mod_4 the same as mod_3, but with interactions among Age, Sex, and log(Coverage).
+Use fmodel() on look at each of the four models to see which model seems to fit the data best. (The + ggplot::geom_point() command added to fmodel() displays the data points.)
+Use cross validation to demonstrate that mod_4 has a smaller MSE on testing data than mod_1. (mod_4 is the best of the four models. Feel free to compare all four if you want to confirm this.)
+```{r}
+# Make model with log(Cost)
+mod_1 <- lm(log(Cost) ~ Age + Sex + Coverage, data = AARP)
+mod_2 <- lm(log(Cost) ~ Age * Sex + Coverage, data = AARP)
+mod_3 <- lm(log(Cost) ~ Age * Sex + log(Coverage), data = AARP)
+mod_4 <- lm(log(Cost) ~  Age * Sex * log(Coverage), data = AARP)
+
+# To display each model in turn 
+fmodel(mod_1, ~ Age + Sex + Coverage, 
+       Coverage = c(10, 20, 50)) +
+  ggplot2::geom_point(data = AARP, alpha = 0.5,
+                      aes(y = log(Cost), color = Sex))
+
+# Use cross validation to compare mod_4 and mod_1
+results <- cv_pred_error(mod_1, mod_4) 
+boxplot(mse ~ model, data = results)
+```
+Exponential growth
+100xp
+The simple data frame Oil_production gives the annual worldwide production of crude oil in millions of barrels (mbbl) from 1880 to 1970. As you can see from the graph, production increased at a faster and faster rate through the years. This pattern of growth is often called exponential growth.
+
+In this exercise, you'll see that a linear model can capture exponential growth only after the effect of log-scaling the y-variable, or in this case, mbbl. You'll also calculate the annual growth using the effect size obtained from this linear model.
+
+Instructions
+Train model_1, a linear model of mbbl explained by year in the Oil_production data frame.
+Plot the model. You can add the training data with the statement geom_point(data = Oil_production). Note how the linear model fails to capture the exponential growth.
+Find the effect size of year on mbbl. At this rate, how many years would it take production to increase by 3800 mbbl (i.e. to double from its 1950 level)? (Hint: 3800 mbbl divided by the effect size in mbbl per year gives years.)
+Train model_2 which, instead of modeling mbbl, uses logmbbl as the response variable.
+For this model, find the effect size of year on logmbbl.
+Calculate the annual growth rate based on model_2 by exponentiating the effect size, subtracting 1 from it, then multiplying the result by 100 for easy interpretability.
+```{r}
+# Model of oil production in mbbl
+model_1 <- lm(mbbl ~ year, data = Oil_production)
+
+# Plot model_1 with scatterplot of mbbl vs. year
+fmodel(model_1, data = Oil_production) + 
+  geom_point(data = Oil_production)
+
+# Effect size of year
+effect_size(model_1, ~ year)
+
+# Model of log-transformed production
+model_2 <- lm(log_mbbl ~ year, data = Oil_production)
+
+# Plot model_2 with scatterplot of mbbl vs. year
+fmodel(model_2, data = Oil_production) +
+  geom_point(data = Oil_production)
+
+# And the effect size on log-transformed production
+effect_size(model_2, ~ year)
+
+# Annual growth
+100 * (exp(round(0.06636971, 3)) - 1)
+```
+Prediction with log transforms
+0xp
+The code provided in the editor shows two models of used car prices versus mileage and age, one with a logarithmic transform of price. In this exercise, you'll compare the models' mean square errors.
+
+When you build a model with a logarithmically transformed response, the usual way of calculating prediction error will produce the error in the logarithm, not the error in the original value. You'll see how to use the exp() function to "undo" the logarithm so that you can compare the price predicted rather than the logarithm of the price.
+
+Instructions
+Train the two models as shown in the editor.
+Calculate the mean square error of model_1.
+Use the exponential function (exp()) to translate the model output from log price into the original scale of price.
+Calculate the mean square error on price for model_2.
+Which model produces the better predictions?
+```{r}
+# A model of price
+model_1 <- lm(Price ~ Mileage + Age, data = Used_Fords)
+
+# A model of logarithmically transformed price
+Used_Fords$log_price <- log(Used_Fords$Price)
+model_2 <- lm(log_price ~ Mileage + Age, data = Used_Fords)
+
+# The model values on the original cases
+preds_1 <- evaluate_model(model_1, data = Used_Fords)
+
+# The model output for model_2 - giving log price
+preds_2 <- evaluate_model(model_2, data = Used_Fords)
+
+# Transform predicted log price to price
+preds_2$model_price <- exp(preds_2$model_output)
+
+# Mean square errors in price
+mean((preds_1$Price - preds_1$model_output)^2, na.rm = TRUE)
+mean((preds_2$Price - preds_2$model_price)^2, na.rm = TRUE)
+```
+Confidence intervals on log-transformed models
+100xp
+The previous exercise highlighted that the model output for a log-transformed response is in terms of the logarithm of the response variable.
+
+The effect size for a log-transformed value is in terms of change of logarithm per unit of the explanatory variable. It's generally easier to interpret this as a percentage change per unit of the explanatory variable, which also involves an exponential transformation: 100 * (exp(__effect_size__) - 1).
+
+Instructions
+Build the model of log-transformed price as shown in the editor.
+Create an ensemble of 100 bootstrap replications of the model.
+Calculate the effect size ~ Age on the bootstrap replications.
+Transform the numerical value of the slope to a percentage change per unit of the explanatory variable.
+Find the 95% confidence interval on the percentage change per year of age. You can use the usual method: mean plus-or-minus twice the standard deviation.
+```{r}
+# A model of logarithmically transformed price
+model <- lm(log(Price) ~ Mileage + Age, data = Used_Fords)
+
+# Create the bootstrap replications
+bootstrap_reps <- ensemble(model, nreps = 100, data = Used_Fords)
+
+# Find the effect size
+age_effect <- effect_size(bootstrap_reps, ~ Age)
+
+# Change the slope to a percent change
+age_effect$percent_change <- 100 * (exp(age_effect$slope) - 1)
+
+# Find confidence interval
+with(age_effect, mean(percent_change) + c(-2, 2) * sd(percent_change))
+```
+Collinearity and inflation (1)
+100xp
+The first several lines of code in the editor show the calculation of the effect size of educ on wage using a linear model trained on the CPS85 data. The 95% confidence interval on the effect size ranges from about -0.5 dollar per year of education to 1.30 dollar per year of education. In other words, the confidence interval is so wide that you can't even say whether education has a positive or a negative effect on wage.
+
+Notice that sector, exper, and age have all been used as covariates. In this exercise, you'll look at the collinearity among the explanatory variables to see if there is a covariate you can exclude that will dramatically reduce the width of the confidence interval.
+
+The collinearity() function (from the statisticalModeling package) calculates how much the effect size might (at a maximum) be influenced by collinearity with the other explanatory variables.
+
+Instructions
+Examine the confidence interval on the effect of educ on wage for model_1.
+Use the collinearity() function to assess the worst possible inflation introduced by collinearity among the explanatory variables. Note the huge variance inflation (15.27215.272) on education.
+Again using collinearity(), try omitting each of the covariates in turn to find one that can be left out that will dramatically reduce the inflation.
+```{r}
+# A model of wage
+model_1 <- lm(wage ~ educ + sector + exper + age, data = CPS85)
+
+# Effect size of educ on wage
+effect_size(model_1, ~ educ)
+
+# Examine confidence interval on effect size
+ensemble_1 <- ensemble(model_1, nreps = 100)
+effect_from_1 <- suppressWarnings(effect_size(ensemble_1, ~ educ))
+with(effect_from_1, mean(slope) + c(-2, 2) * sd(slope))
+
+# Collinearity inflation factor on standard error
+collinearity( ~ educ + sector + exper + age, data = CPS85)
+
+# Leave out covariates one at a time
+collinearity( ~ educ + sector + exper, data = CPS85) # leave out age
+collinearity( ~ educ + sector + age, data = CPS85) # leave out exper
+collinearity( ~ educ + exper + age, data = CPS85) # leave out sector
+```
+Collinearity and inflation (2)
+100xp
+In the last exercise, you experimented with removing each of three covariates (sector, exper, and age) from the following model of wages:
+
+model_1 <- lm(wage ~ educ + sector + exper + age, data = CPS85)
+
+For each variation, you measured the effect on inflation and found that leaving out either age or exper brought a signifcant reduction in the variance inflation factor.
+
+In this exercise, you'll build a new model excluding exper, then find the new confidence interval on the effect of educ on wage.
+
+Instructions
+Build model_2 the same as model_1, but leaving out the worst offending covariate, exper.
+Find the new confidence interval on the effect of educ on wage for model_2.
+```{r}
+# Improved model leaving out worst offending covariate
+model_2 <- lm(wage ~ educ + sector + age, data = CPS85)
+
+# Confidence interval of effect size of educ on wage
+ensemble_2 <- ensemble(model_2, nreps = 100)
+effect_from_2 <- effect_size(ensemble_2, ~ educ)
+with(effect_from_2, mean(slope) + c(-2, 2) * sd(slope))
+```
+Inflation and interaction
+100xp
+Often including an interaction among the explanatory variables can reduce prediction errors. As a rule, the smaller the prediction error, the tighter will be the confidence interval on an effect size. This can be offset, however, when there is collinearity introduced by the interaction.
+
+In this exercise, you'll work with used car data to see an example of how the cross-validated prediction error of price can be greatly reduced by including an interaction term between age and mileage. But, because of collinearity, you'll see that the reduction in prediction error does not lead to a narrower confidence interval.
+
+Instructions
+Train two linear models on the Used_Ford data: one with Price ~ Age + mileage and the other with an interaction included: Price ~ Age * Mileage.
+Find the cross-validated prediction errors for the two models and confirm that the interaction substantially reduces prediction error.
+For each of the two models, calculate a 95% confidence interval on the effect of Age on Price.
+Look at the collinearity inflation factors to see why the interaction did not narrow the confidence interval even though it improved prediction error.
+```{r}
+# Train a model Price ~ Age + Mileage
+model_1 <- lm(Price ~ Age + Mileage, data = Used_Fords)
+
+# Train a similar model including the interaction
+model_2 <- lm(Price ~ Age * Mileage, data = Used_Fords)
+
+# Compare cross-validated prediction error
+cv_pred_error(model_1, model_2)
+
+# Use bootstrapping to find conf. interval on effect size of Age  
+ensemble_1 <- ensemble(model_1, nreps = 100)
+ensemble_2 <- ensemble(model_2, nreps = 100)
+effect_from_1 <- effect_size(ensemble_1, ~ Age)
+effect_from_2 <- effect_size(ensemble_2, ~ Age)
+with(effect_from_1, mean(slope) + c(-2, 2) * sd(slope))
+with(effect_from_2, mean(slope) + c(-2, 2) * sd(slope))
+
+# Compare inflation for the model with and without interaction
+collinearity(~  Age + Mileage, data = Used_Fords)
+collinearity(~  Age * Mileage, data = Used_Fords)
+```
+
+
+

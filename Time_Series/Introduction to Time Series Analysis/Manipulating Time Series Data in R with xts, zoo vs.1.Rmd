@@ -1,0 +1,888 @@
+---
+title: "Manipulating Time Series Data in R with xts & zoo"
+output: html_notebook
+---
+
+#xts object
+
+####XTS objects are matrix objects internally. XTS objects are indexed by a formal time object. Most zoo methods work for xts. 
+
+```{r}
+# Load xts
+install.packages("xts")
+library(xts)
+
+dates <- seq(as.Date("2016-01-01"), length = 3, by = "days")
+core <- matrix(c(1,1,1,2,2,2),nrow=3, ncol=2)
+ex_matrix <- xts(x = matrix, order.by = dates)
+
+# View the structure of ex_matrix
+str(ex_matrix)
+
+# Extract the 3rd observation of the 2nd column of ex_matrix
+ex_matrix[3, 2]
+
+# Extract the 3rd observation of the 2nd column of core 
+core[3, 2]
+```
+
+#Your first xts object
+
+####Background: The main xts constructor takes a number of arguments, but the two most important are x for the data and order.by for the index. x must be a vector or matrix. order.by is a vector which must be the same length or number of rows as x, be a proper time or date object (very important!), and be in increasing order.
+
+```{r}
+# Create the object data using 5 random numbers
+data <- rnorm(5)
+
+# Create dates as a Date class object starting from 2016-01-01
+dates <- seq(as.Date("2016-01-01"), length = 5, by = "days")
+
+# Use xts() to create smith
+smith <- xts(x = data, order.by = dates)
+
+# Create bday (1899-05-08) using a POSIXct date class object
+bday <- as.POSIXct("1899-05-08")
+
+# Create hayek and add a new attribute called born
+hayek <- xts(x = data, order.by = dates, born = bday)
+
+```
+
+#Deconstructing xts
+
+```{r}
+# Extract the core data of hayek
+ex_matrix_core <- coredata(ex_matrix)
+
+# View the class of hayek_core
+class(ex_matrix_core)
+
+# Extract the index of hayek
+ex_matrix_index <- index(ex_matrix)
+
+# View the class of hayek_index
+class(ex_matrix_index)
+```
+#Time based indices
+
+```{r}
+# Create dates
+dates <- as.Date("2016-01-01") + 0:4
+
+# Create ts_a
+ts_a <- xts(x = 1:5, order.by = dates)
+
+# Create ts_b
+ts_b <- xts(x = 1:5, order.by = as.POSIXct(dates))
+
+# Extract the rows of ts_a using the index of ts_b
+ts_a[index(ts_b)]
+
+# Extract the rows of ts_b using the index of ts_a
+ts_b[index(ts_a)]
+```
+#Basic time series plots
+
+
+
+```{r}
+dates1 <- seq(as.Date("1871-01-01"), length=100, by="years")
+data1 <- c(1120,	1160,	963,	1210,	1160,	1160,	813,	1230,	1370,	1140,	995,	935,	1110,	994,	1020,
+960,	1180,	799,	958,	1140,	1100,	1210,	1150,	1250,	1260,	1220,	1030,	1100,	774,	840,
+874,	694,	940,	833,	701,	916,	692,	1020,	1050,	969,	831,	726,	456,	824,	702,
+1120,	1100,	832,	764,	821,	768,	845,	864,	862,	698,	845,	744,	796,	1040,	759,
+781,	865,	845,	944,	984,	897,	822,	1010,	771,	676,	649,	846,	812,	742,	801,
+1040,	860,	874,	848,	890,	744,	749,	838,	1050,	918,	986,	797,	923,	975,	815,
+1020,	906,	901,	1170,	912,	746,	919,	718,	714,	740)
+Nile <- xts(x = data1, order.by = dates1)
+
+# Plot the Nile data
+plot(Nile)
+
+# Plot the Nile data with xlab and ylab arguments
+plot(Nile, xlab = "Year", ylab = "River Volume (1e9 m^{3})")
+
+# Plot the Nile data with xlab, ylab, main, and type arguments
+plot(Nile, xlab = "Year", ylab = "River Volume (1e9 m^{3})", main = "Annual River Nile Volume at Aswan, 1871-1970", type ="b")
+```
+
+```{r}
+data2 <- c(112,	118,	132,	129,	121,	135,	148,	148,	136,	119,	104,	118,
+115,	126,	141,	135,	125,	149,	170,	170,	158,	133,	114,	140,
+145,	150,	178,	163,	172,	178,	199,	199,	184,	162,	146,	166,
+171,	180,	193,	181,	183,	218,	230,	242,	209,	191,	172,	194,
+196,	196,	236,	235,	229,	243,	264,	272,	237,	211,	180,	201,
+204,	188,	235,	227,	234,	264,	302,	293,	259,	229,	203,	229,
+242,	233,	267,	269,	270,	315,	364,	347,	312,	274,	237,	278,
+284,	277,	317,	313,	318,	374,	413,	405,	355,	306,	271,	306,
+315,	301,	356,	348,	355,	422,	465,	467,	404,	347,	305,	336,
+340,	318,	362,	348,	363,	435,	491,	505,	404,	359,	310,	337,
+360,	342,	406,	396,	420,	472,	548,	559,	463,	407,	362,	405,
+417,	391,	419,	461,	472,	535,	622,	606,	508,	461,	390,	432)
+
+AirPassengers2 <- ts(data2, start=1949, frequency=12)
+
+# Plot AirPassengers
+plot(AirPassengers2)
+
+# View the start and end dates of AirPassengers
+start(AirPassengers2)
+end(AirPassengers2)
+
+# Use time(), deltat(), frequency(), and cycle() with AirPassengers 
+time(AirPassengers2)
+deltat(AirPassengers2)
+frequency(AirPassengers2)
+cycle(AirPassengers2)
+```
+
+#Missing values
+
+####Use mean(___, na.rm = TRUE) to calculate the mean with all missing values removed. It is common to replace missing values with the mean of the observed values. 
+
+```{r}
+
+data4 <- c(112,	118,	132,	129,	121,	135,	148,	148,	136,	119,	104,	118,
+115,	126,	141,	135,	125,	149,	170,	170,	158,	133,	114,	140,
+145,	150,	178,	163,	172,	178,	199,	199,	184,	162,	146,	166,
+171,	180,	193,	181,	183,	218,	230,	242,	209,	191,	172,	194,
+196,	196,	236,	235,	229,	243,	264,	272,	237,	211,	180,	201,
+204,	188,	235,	227,	234,	264,	302,	293,	259,	229,	203,	229,
+242,	233,	267,	269,	270,	315,	364,	347,	312,	274,	237,	278,
+NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,
+315,	301,	356,	348,	355,	422,	465,	467,	404,	347,	305,	336,
+340,	318,	362,	348,	363,	435,	491,	505,	404,	359,	310,	337,
+360,	342,	406,	396,	420,	472,	548,	559,	463,	407,	362,	405,
+417,	391,	419,	461,	472,	535,	622,	606,	508,	461,	390,	432)
+
+AirPassengers1 <- ts(data4, start=1949, frequency=12)
+AirPassengers1
+
+# Plot the AirPassengers data
+plot(AirPassengers1)
+
+# Compute the mean of AirPassengers
+mean(AirPassengers1, na.rm=TRUE)
+
+# Impute mean values to NA in AirPassengers
+AirPassengers1[85:96] <- mean(AirPassengers, na.rm = TRUE)
+
+# Generate another plot of AirPassengers
+plot(AirPassengers1)
+
+# Add the complete AirPassengers data to your plot
+rm(AirPassengers1)
+points(AirPassengers1, type = "l", col = 2, lty = 3)
+```
+
+#Creating a time series object with ts()
+
+```{r}
+# Use print() and plot() to view data_vector
+data_vector <- c(2.0521941073,	4.2928852797,	3.3294132944,	3.508595067,	0.0009576938,
+1.9217186345,	0.7978134128,	0.2999543435,	0.9435687536,	0.5748283388,
+-0.0034005903,	0.3448649176,	2.2229761136,	0.1763144576,	2.709762277,
+1.2501948965,	-0.4007164754,	0.8852732121,	-1.5852420266,	-2.2829278891,
+-2.560953129,	-3.1259963754,	-2.8660295895,	-1.7847009207,	-1.8894912908,
+-2.7255351194,	-2.10331418,	-0.0174256893,	-0.3613204151,	-2.9008403327,
+-3.2847440927,	-2.8684594718,	-1.9505074437,	-4.8801892525,	-3.2634605353,
+-1.6396062522,	-3.301257584,	-2.6331245433,	-1.7058354022,	-2.2119825061,
+-0.5170595186,	0.0752508095,	-0.8406994716,	-1.4022683487,	-0.138211423,
+-1.4065954703,	-2.3046941055,	1.5073891432,	0.7118679477,	-1.1300519022)
+plot(data_vector)
+
+# Convert data_vector to a ts object with start = 2004 and frequency = 4
+time_series <- ts(data_vector, start=2004, frequency=4)
+
+# Use print() and plot() to view time_series
+print(time_series)
+  plot(time_series)
+
+```
+#Importing, exporting and converting time series
+
+###Converting using as . xts ( ) 
+###convert back and forth using the standard as.* style functionality provided in R (for example, as.POSIXct() or as.matrix())
+
+```{r}
+
+# import csv file
+austres <- read.csv("austres.csv", row.names = 1, header= TRUE)
+
+# Convert austres to an xts object called au
+au <- xts(austres, order.by = as.Date(rownames(austres), "%m/%d/%Y"))
+class(au)
+
+# Then convert your xts object (au) into a matrix am
+am <- as.matrix(au)
+
+# Inspect the head of am
+head(am)
+
+# Convert the original austres into a matrix am2
+am2 <- as.matrix(austres)
+
+# Inspect the head of am2
+head(am2)
+
+```
+#Importing data
+
+```{r}
+
+#import csv file
+dat_1 <- read.csv("tmp_file.csv", row.names = 1, header= TRUE)
+dat_1
+
+# Convert dat into xts
+dat_xts <- xts(dat_1, order.by = as.Date(rownames(dat_1), "%m/%d/%Y"))
+dat_xts
+
+# Read tmp_file using read.zoo
+dat_zoo <- read.zoo('tmp_file_1.csv', header=TRUE, sep = ",", format = "%m/%d/%Y")
+dat_zoo
+
+# Convert dat_zoo to xts
+dat_xts <- as.xts(dat_zoo)
+dat_xts
+```
+#Exporting xts objects
+
+```{r}
+data(sunspots)
+
+# Convert sunspots to xts using as.xts().
+sunspots_xts <- as.xts(sunspots)
+class(sunspots_xts)
+
+# Get the temporary file name
+tmp <- tempfile()
+
+# Write the xts object using zoo to tmp 
+write.zoo(sunspots_xts, sep = ",", file = tmp)
+
+# Read the tmp file. FUN = as.yearmon converts strings such as Jan 1749 into a proper time class
+sun <- read.zoo(tmp, sep = ",", FUN = as.yearmon)
+
+# Convert sun into xts. Save this as sun_xts
+sun_xts <- as.xts(sun)
+
+class(sun_xts)
+```
+#Querying for dates
+
+```{r}
+#import csv file
+x <- read.csv("x_1.csv", row.names = 1, header= TRUE)
+str(x)
+
+# Convert dat into xts
+x_xts <- xts(x, order.by = as.Date(rownames(x), "%m/%d/%Y"))
+head(x_xts)
+str(x_xts)
+
+# Select all of 2016 from x
+x_2016 <- x_xts["2016"]
+head(x_2016)
+
+# Select January 1, 2016 to March 22, 2016
+jan_march <- x_xts["2016/2016-03-22"]
+length(jan_march)
+
+# Verify that jan_march contains 82 rows
+82 == length(jan_march)
+```
+#Extracting recurring intraday intervals
+
+```{r}
+
+#import csv file, Convert dat into xts
+irreg_1 <- read_csv("irreg.csv")
+irreg_1_xts <- xts(irreg_1[,-1], order.by = as.POSIXct(irreg_1$date, format = "%m/%d/%Y %H:%M"))
+head(irreg_1_xts)
+
+#import csv file
+irreg <- read_csv("irreg.csv")
+irreg
+
+# Convert dat into xts
+irreg_xts <- xts(x=irreg, order.by = as.Date(rownames(irreg), "%m/%d/%Y" ))
+head(irreg_xts)
+class(irreg_xts)
+
+irreg_xts1 <- xts(x=irreg, order.by = as.Date(rownames(irreg), "%m/%d/%Y %H:%M:%s" ))
+head(irreg_xts1)
+
+# Extract all data from irreg between 8AM and 10AM
+morn_2010 <- irreg_1_xts["T08:00/T10:00"]
+
+# Extract the observations in morn_2010 for January 13th, 2010
+morn_2010["2010-01-13"]
+```
+#Row selection with time objects
+
+```{r}
+#import csv file, Convert dat into xts
+x_2 <- read_csv("x_2.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+x_2_xts <- xts(x_2[,-1], order.by = as.POSIXct(x_2$date, format = "%m.%d.%Y %H:%M"))
+head(x_2_xts)
+
+# Read tmp_file using read.zoo
+x_zoo <- read.zoo('x_2.csv', header=TRUE, sep = ",", format = "%m/%d/%Y")
+x_zoo
+str(x_zoo)
+
+dates <- c(2016-06-04, 2016-06-08)
+
+# Subset x using the vector dates
+x_zoo[dates]
+x_2_xts[dates]
+
+# Subset x using dates as POSIXct
+
+x_zoo[as.POSIXct(date)]
+```
+#Update and replace elements
+
+```{r}
+x_2 <- read_csv("x_2.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+x_2_xts <- xts(x_2[,-1], order.by = as.POSIXct(x_2$date, format = "%m.%d.%Y %H:%M"))
+x_2_xts
+
+# Replace the values in x contained in the dates vector with NA
+x_2_xts[dates] <- NA
+head(x_2_xts)
+
+# Replace all values in x for dates starting June 9, 2016 with 0
+x_2_xts["2016-06-09/"] <- 0
+x_2_xts
+
+# Verify that the value in x for June 11, 2016 is now indeed 0
+x_2_xts["2016-06-10"]
+```
+#Find the first or last period of time
+
+```{r}
+library(xts)
+#import csv file, Convert dat into xts
+Temps <- read_csv("Temps.csv", col_types = cols(Date = col_date(format = "%m/%d/%Y")))
+
+#Temps_xts <- as.xts(x=Temps[,-1], order.by = Temps$Date, "%Y-%m-%d")
+Temps_xts <- as.xts(Temps[,-1], order.by = Temps$date, "%Y-%m-%d")
+head(Temps_xts)
+class(Temps_xts)
+str(Temps_xts)
+
+# Read tmp_file using read.zoo
+Temps_zoo <- read.zoo('Temps.csv', header=TRUE, sep = ",", format = "%m/%d/%Y")
+
+# Create lastweek using the last 1 week of temps
+lastweek <- last(Temps_zoo, "1 week")
+lastweek
+lastweek_1 <- last(Temps_xts, "1 week")
+lastweek_1
+
+# Print the last 2 observations in lastweek
+last(lastweek, n=2)
+last(lastweek_1, n=2)
+
+# Extract all but the first two days of lastweek
+first(lastweek, "-2 days")
+first(lastweek_1, "-2 days")
+
+```
+#Combining first and last
+
+###Find the first three days of the second week of the temps data set.
+```{r}
+# Extract the first three days of the second week of temps
+first(last(first(Temps_zoo, "2 weeks"), "1 week"), "3 days")
+```
+#Matrix arithmetic - add, subtract, multiply, and divide in time
+
+###Your options include:
+
+###Use coredata() or as.numeric() (drop one to a matrix or vector).
+###Manually shift index values - i.e. use lag().
+###Reindex your data (before or after the calculation).
+
+##Adding two xts objects returns only the dates common to both.
+```{r}
+
+#a <- read_csv("a.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+#a_xts <- as.xts(x=a[,-1], order.by = a$date, "%Y-%m-%d")
+#str(a_xts)
+###Manually shift index values - i.e. use lag().
+
+#import a
+str(a)
+
+#convert a to xts
+a_xts <- as.xts(a[,-1], order.by = a$date, "%Y-%m-%d")
+a_xts
+str(a_xts)
+
+#import b
+b <- read_csv("b.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+str(b)
+
+# convert b to xts
+b_xts <- as.xts(b[,-1], order.by = b$date, "%Y-%m-%d")
+b_xts
+str(b_xts)
+
+# Add a and b
+a_xts+b_xts
+
+# Add a with the numeric value of b
+a_xts + as.numeric(b_xts)
+```
+#Math with non-overlapping indexes
+
+###merge(b, index(a))
+```{r}
+# Add a to b, and fill all missing rows of b with 0
+a_xts + merge(b_xts, index(a_xts), fill = 0)
+
+# Add a to b and fill NAs with the last observation
+a_xts + merge(b_xts, index(a_xts), fill = na.locf)
+```
+#Combining xts by column with merge
+
+```{r}
+library(readr)
+library(xts)
+
+a_1 <- read_csv("a_1.csv", col_types = cols(a = col_number(), 
+    date = col_date(format = "%m/%d/%Y")))
+a_1_xts <- as.xts(a_1[,-1], order.by = a_1$date, "%Y-%m-%d")
+a_1_xts
+
+b_1 <- read_csv("b_1.csv", col_types = cols(b = col_number(), 
+    date = col_date(format = "%m/%d/%Y")))
+b_1_xts <- as.xts(b_1[,-1], order.by = b_1$date, "%Y-%m-%d")
+b_1_xts
+
+# Perform an inner join of a and b
+merge(a_1_xts, b_1_xts, join = "inner")
+
+# Perform a left-join of a and b, fill missing values with 0
+merge(a_1_xts, b_1_xts, join = "left", fill = 0)
+
+```
+#Combining xts by row with rbind
+
+###Because xts objects are ordered by their time index, the order of arguments in xts's rbind() command is unimportant.
+
+```{r}
+temps_1 <- read_csv("temps_1.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+temps_1_xts <- as.xts(temps_1[,-1], order.by = temps_1$date, "%m/%d/%Y")
+temps_1_xts
+
+temps_july17 <- read_csv("temps_july17.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+temps_july17_xts <- as.xts(temps_july17[,-1], order.by = temps_july17$date, "%m/%d/%Y")
+temps_july17_xts
+
+temps_july18 <- read_csv("temps_july18.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+temps_july18_xts <- as.xts(temps_july18[,-1], order.by = temps_july18$date, "%m/%d/%Y")
+temps_july18_xts
+
+temps_june30 <- read_csv("temps_june30.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+temps_june30_xts <- as.xts(temps_june30[,-1], order.by = temps_june30$date, "%m/%d/%Y")
+temps_june30_xts
+
+# Row bind temps_june30 to temps, assign this to temps2
+temps2 <- rbind(temps_june30_xts, temps_1_xts)
+temps2
+
+# Row bind temps_july17 and temps_july18 to temps2, call this temps3
+temps3 <- rbind(temps_july17_xts, temps_july18_xts, temps2)
+temps3
+
+```
+#Fill missing values using last or previous observation
+
+###na.locf(). This function takes the last observation carried forward approach.  In most circumstances this is the correct thing to do. It both preserves the last known value and prevents any look-ahead bias from entering into the data. You can also apply next observation carried backward by setting fromLast = TRUE.
+
+###Last obs. carried forward
+###na.locf(x)
+
+#### Next obs. carried backward
+###na.locf(x, fromLast = TRUE)
+
+```{r}
+temps_2 <- read_csv("temps_2.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+temps_2_xts <- as.xts(temps_2[,-1], order.by = temps_2$date, "%m/%d/%Y")
+temps_2_xts
+
+# Fill missing values in temps using the last observation
+temps_last <- na.locf(temps_2)
+temps_last
+# Fill missing values in temps using the next observation
+temps_next <- na.locf(temps_2, fromLast = TRUE)
+temps_next
+```
+#NA interpolation using na.approx()
+
+###Based on simple linear interpolation between points, implemented with na.approx() the data points are approximated using the distance between the index values. In other words, the estimated value is linear in time.
+
+```{r}
+AirPass <- read_csv("AirPass.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+AirPass_xts <- as.xts(AirPass[,-1], order.by = AirPass$date, "%m/%d/%Y")
+AirPass_xts
+
+# Interpolate NAs using linear approximation
+na.approx(AirPass_xts)
+```
+#Combine a leading and lagging time series
+
+###For historical reasons in R, zoo uses a convention for the sign of k in which negative values indicate lags and positive values indicate leads.
+###xts implements the exact opposite, namely for a positive k, the series will shift the last value in time one period forward.
+
+```{r}
+x_3 <- read_csv("x_3.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+x_3_xts <- as.xts(x_3[,-1], order.by = x_3$date, "%m/%d/%Y")
+x_3_xts
+
+# Create a leading object called lead_x
+lead_x <- lag(x_3_xts, k = -1)
+lead_x
+# Create a lagging object called lag_x
+lag_x <- lag(x_3_xts, k = 1)
+lag_x
+# Merge your three series together and assign to z
+z <- merge(lead_x, x_3_xts, lag_x)
+z
+```
+#Calculate a difference of a series using diff()
+
+```{r}
+AirPass_2 <- read_csv("AirPass_2.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+AirPass_2_xts <- as.xts(AirPass_2[,-1], order.by = AirPass_2$date, "%m/%d/%Y")
+head(AirPass_2_xts)
+
+# Calculate the first difference of AirPass and assign to diff_by_hand
+diff_by_hand <- AirPass_2_xts - lag(AirPass_2_xts)
+
+# Use merge to compare the first parts of diff_by_hand and diff(AirPass)
+merge(head(diff_by_hand), head(diff(AirPass_2_xts)))
+
+# Calculate the first order 12 month difference of AirPass
+head(diff(AirPass_2_xts, lag = 12, differences = 1),n=13)
+```
+#Find intervals by time in xts
+
+###Endpoints() takes a time series (or a vector of times) and returns the locations of the last observations in each interval.
+
+###The argument on supports a variety of periods, including "years", "quarters", "months", as well as intraday intervals such as "hours", and "minutes". What is returned is a vector starting with 0 and ending with the extent (last row) of your data.
+
+###For example, setting the arguments of your endpoints() call to on = "weeks", k = 2, would generate the final day of every other week in your data.
+
+```{r}
+temps_1 <- read_csv("temps_1.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+temps_1_xts <- as.xts(temps_1[,-1], order.by = temps_1$date, "%m/%d/%Y")
+temps_1_xts
+
+# Locate the weeks
+endpoints(temps_1_xts, on = "weeks")
+
+# Locate every two weeks
+endpoints(temps_1_xts, on = "weeks", k = 2)
+```
+#Apply a function by time period(s)
+
+###period.apply(x, INDEX, FUN, ...)
+
+```{r}
+temps_1 <- read_csv("temps_1.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+temps_1_xts <- as.xts(temps_1[,-1], order.by = temps_1$date, "%m/%d/%Y")
+temps_1_xts
+
+# Calculate the weekly endpoints
+ep <- endpoints(temps_1_xts, on = "weeks")
+
+# Now calculate the weekly mean and display the results
+period.apply(temps_1_xts[, "Temp.Mean"], INDEX = ep, FUN = mean)
+```
+#Using lapply() and split() to apply functions on intervals
+
+###Often it is useful to physically split your data into disjoint chunks by time and perform some calculation on these periods.
+
+```{r}
+temps_1 <- read_csv("temps_1.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+temps_1_xts <- as.xts(temps_1[,-1], order.by = temps_1$date, "%m/%d/%Y")
+temps_1_xts
+
+# Split temps by week
+temps_weekly <- split(temps_1_xts, f = "weeks")
+
+# Create a list of weekly means, temps_avg, and print this list
+temps_avg <- lapply(X = temps_weekly, FUN = mean)
+temps_avg
+```
+#Selection by endpoints vs. split-lapply-rbind
+
+```{r}
+temps_1 <- read_csv("temps_1.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+temps_1_xts <- as.xts(temps_1[,-1], order.by = temps_1$date, "%m/%d/%Y")
+temps_1_xts
+
+# Use the proper combination of split, lapply and rbind
+temps_1 <- do.call(rbind, lapply(split(temps_1_xts, "weeks"), function(w) last(w, n = "1 day")))
+
+# Create last_day_of_weeks using endpoints()
+last_day_of_weeks <- endpoints(temps_1_xts, on = "weeks")
+last_day_of_weeks
+
+# Subset temps using last_day_of_weeks 
+temps_2 <- temps_1_xts[last_day_of_weeks]
+temps_2
+```
+#Convert univariate series to OHLC data
+
+###Convert from a univariate series into OHLC series, and then convert your final OHLC series back into a univariate series using the xts function to.period(). This function takes a time-series, x, and a string for the period (i.e. months, days, etc.), in addition to a number of other optional arguments.
+
+###to.period(x,
+###          period = "months", 
+###          k = 1, 
+###          indexAt, 
+###          name=NULL,
+###          OHLC = TRUE,
+###          ...)
+
+```{r}
+usd_eur <- read_csv("USDEUR.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+usd_eur_xts <- as.xts(USDEUR[,-1], order.by = USDEUR$date, "%m/%d/%Y")
+head(usd_eur_xts)
+
+# Convert usd_eur to weekly and assign to usd_eur_weekly
+usd_eur_weekly <- to.period(usd_eur_xts, period = "weeks")
+head(usd_eur_weekly)
+
+# Convert usd_eur to monthly and assign to usd_eur_monthly
+usd_eur_monthly <- to.period(usd_eur_xts, period = "months")
+head(usd_eur_monthly)
+
+# Convert usd_eur to yearly univariate and assign to usd_eur_yearly
+usd_eur_yearly <- to.period(usd_eur_xts, period = "years", OHLC = FALSE)
+head(usd_eur_yearly)
+```
+#Convert a series to a lower frequency
+
+###Besides converting univariate time series to OHLC series, to.period() also lets you convert OHLC to lower regularized frequency - something like subsampling your data.
+
+```{r}
+eq_mkt <- read_csv("eq_mkt.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+eq_mkt_xts <- as.xts(eq_mkt[,-1], order.by = eq_mkt$date, "%m/%d/%Y")
+head(eq_mkt_xts)
+
+# Convert eq_mkt to quarterly OHLC
+mkt_quarterly <- to.period(eq_mkt_xts, period = "quarters")
+head(mkt_quarterly)
+
+# Convert eq_mkt to quarterly using shortcut function
+mkt_quarterly2 <- to.quarterly(eq_mkt_xts, name = "edhec_equity", indexAt = "firstof")
+head(mkt_quarterly2)
+```
+#Calculate basic rolling value of series by month
+
+###For example, you may want to calculate a running month-to-date cumulative sum of a series.
+
+cumulative annual return:
+x_split <- split(x, f = "months")
+x_list <- lapply(x_split, cummax)
+x_list_rbind <- do.call(rbind, x_list)
+
+```{r}
+edhec <- read_csv("edhec.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+edhec_xts <- as.xts(edhec[,-1], order.by = edhec$date, "%m/%d/%Y")
+head(edhec_xts)
+
+# Split edhec into years
+edhec_years <- split(edhec_xts , f = "years")
+head(edhec_years)
+
+# Use lapply to calculate the cumsum for each year in edhec_years
+edhec_ytd <- lapply(edhec_years, FUN = cumsum)
+head(edhec_ytd)
+
+# Use do.call to rbind the results
+edhec_xts <- do.call(rbind, edhec_ytd)
+head(edhec_xts)
+```
+#Calculate the rolling standard deviation of a time series
+
+This function takes a time series object x, a window size width, and a function FUN to apply to each rolling period. The width argument can be tricky; a number supplied to the width argument specifies the number of observations in a window. For instance, to take the rolling 10-day max of a series, you would type the following:
+
+rollapply(x, width = 10, FUN = max, na.rm = TRUE)
+Note that the above would only take the 10-day max of a series with daily observations. If the series had monthly observations, it would take the 10-month max. Also note that you can pass additional arguments (i.e. na.rm to the max function) just like you would with apply().
+
+```{r}
+eq_mkt <- read_csv("eq_mkt.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+eq_mkt_xts <- as.xts(eq_mkt[,-1], order.by = eq_mkt$date, "%m/%d/%Y")
+head(eq_mkt_xts)
+
+# Use rollapply to calculate the rolling 3 period sd of eq_mkt
+eq_sd <- rollapply(eq_mkt_xts, width=3, FUN = sd)
+head(eq_sd)
+```
+#Time via index()
+
+```{r}
+temps_1 <- read_csv("temps_1.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+temps_1_xts <- as.xts(temps_1[,-1], order.by = temps_1$date, "%m/%d/%Y")
+temps_1_xtsp <- as.xts(temps_1[,-1], order.by = as.POSIXct(temps_1$date, format = "%m.%d.%Y %H:%M"))
+temps_1_xtsp
+
+tclass(temps_1_xtsp)
+
+indexClass(temps_1_xtsp)
+
+#changes the index of the first entry of the data to Jul 01, 2016
+indexFormat(temps_1_xtsp) <- "%b %d, %Y"
+head(temps_1_xtsp)
+
+#provide R documentation for time zones.
+help(OlsonNames)
+
+#inspect the time zone of the data
+tzone(temps_1_xtsp)
+indexTZ(temps_1_xtsp)
+
+```
+#Class attributes - tclass, tzone, and tformat
+
+The index class using indexClass() (e.g. from Date to chron)
+The time zone using indexTZ() (e.g. from America/Chicago to Europe/London)
+The time format to be displayed via indexFormat() (e.g. YYYY-MM-DD)
+
+```{r}
+temps_1 <- read_csv("temps_1.csv", col_types = cols(date = col_date(format = "%m/%d/%Y")))
+temps_1_xtsp <- as.xts(temps_1[,-1], order.by = as.POSIXct(temps_1$date, format = "%m.%d.%Y %H:%M"))
+temps_1_xtsp
+
+# View the first three indexes of temps
+index(temps_1_xtsp)[1:3]
+
+# Get the index class of temps
+indexClass(temps_1_xtsp)
+
+# Get the timezone of temps
+indexTZ(temps_1_xtsp)
+
+# Change the format of the time display
+indexFormat(temps_1_xtsp) <- "%b-%d-%Y"
+
+# View the new format
+head(temps_1_xtsp)
+```
+#Time Zones (and why you should care!)
+
+###tzone(x) <- "Time_Zone"
+
+```{r}
+Sys.setenv(TZ="America/New_York")
+
+#times <- c("2017-11-07 23:27:58 GMT",	"2017-11-07 23:31:18 GMT",	"2017-11-07 23:34:38 GMT",	"2017-11-07 23:37:58 GMT",	"2017-11-07 23:41:18 GMT",	"2017-11-07 23:29:38 GMT",	"2017-11-07 23:32:58 GMT",	"2017-11-07 23:36:18 GMT",	"2017-11-07 23:39:38 GMT",	"2017-11-07 23:42:58 GMT")
+
+times <- c("2017-11-07 23:27:58 EST",	"2017-11-07 23:31:18 EST",	"2017-11-07 23:34:38 EST",	"2017-11-07 23:37:58 EST",	"2017-11-07 23:41:18 EST",	"2017-11-07 23:29:38 EST",	"2017-11-07 23:32:58 EST",	"2017-11-07 23:36:18 EST",	"2017-11-07 23:39:38 EST",	"2017-11-07 23:42:58 EST")
+
+#times <- c("2017-11-07 23:27:58 ",	"2017-11-07 23:31:18 ",	"2017-11-07 23:34:38 ",	"2017-11-07 23:37:58 ",	"2017-11-07 23:41:18 ",	"2017-11-07 23:29:38 ",	"2017-11-07 23:32:58 ",	"2017-11-07 23:36:18 ",	"2017-11-07 23:39:38 ",	"2017-11-07 23:42:58 ")
+
+times_p <- as.POSIXct(times, format = "%Y-%m-%d %H:%M:%S")
+class(times_p)
+
+# Change the time zone of times_xts to Asia/Hong_Kong
+tzone(times_xts) <- "America/Chicago"
+  
+# Extract the current time zone of times_xts
+tzone(times_xts)
+
+# Construct times_xts with tzone set to America/Chicago
+times_xts <- xts(1:10, order.by = times_p, tzone = "America/New_York")
+tzone(times_xts)
+
+# Change the time zone of times_xts to Asia/Hong_Kong
+tzone(times_xts) <- "Asia/Hong_Kong"
+  
+# Extract the current time zone of times_xts
+tzone(times_xts)
+```
+#Determining periodicity
+
+```{r}
+# Calculate the periodicity of temps
+periodicity(temps_1_xts)
+
+# Calculate the periodicity of edhec
+periodicity(edhec_xts)
+
+# Convert edhec to yearly
+edhec_yearly <- to.yearly(edhec_xts)
+
+# Calculate the periodicity of edhec_yearly
+periodicity(edhec_yearly)
+```
+#Find the number of periods in your data
+
+```{r}
+# Count the months
+nmonths(edhec_xts)
+
+# Count the quarters
+nquarters(edhec_xts)
+
+# Count the years
+nyears(edhec_xts)
+```
+#Secret index tools
+
+ To get to the raw vector of the index, you can use .index(). Note the critical dot before the function name.
+ 
+ This functionality is provided by a handful of commands such as .indexday(), .indexmon(), .indexyear(), and more.
+ 
+```{r}
+Sys.setenv(TZ="America/New_York")
+
+temps_sec <- read_csv("temps_sec.csv", col_types = cols(date = col_datetime(format = "%m/%d/%Y %H:%M")))
+temps_sec
+temps_secp <- as.xts(temps_sec[,-1], order.by = as.POSIXct(temps_sec$date, format = "%m.%d.%Y %H:%M"))
+#tzone(temps_secp) <- "America/New_York"
+temps_secp
+
+# Explore underlying units of temps in two commands: .index() and .indexwday()
+.index(temps_secp)
+.indexwday(temps_secp)
+
+# Create an index of weekend days using which()
+index <- which(.indexwday(temps_secp) == 0 | .indexwday(temps_secp) == 6)
+
+# Select the index
+temps_secp[index]
+```
+#Modifying timestamps
+
+If you find that you have observations with identical timestamps, it might be useful to perturb or remove these times to allow for uniqueness. xts provides the function make.index.unique() for just this purpose. The eps argument, short for epsilon or small change, controls how much identical times should be perturbed, and drop = TRUE lets you just remove duplicate observations entirely.
+
+###make.index.unique(x, eps = 1e-4)  # Perturb
+###make.index.unique(x, drop = TRUE) # Drop duplicates
+###align.time(x, n = 60) # Round to the minute
+```{r}
+
+z <- read_csv("z.csv", col_types = cols(date = col_datetime(format = "%m/%d/%Y %H:%M"), z = col_number()))
+z_xtsp <- as.xts(z[,-1], order.by = as.POSIXct(z$date, format = "%m.%d.%Y %H:%M"))
+tzone(z_xtsp) <- "America/New_York"
+
+# Make z have unique timestamps
+z_unique <- make.index.unique(z_xtsp, eps = 1e-4)
+head(z_unique)
+
+# Remove duplicate times in z
+z_dup <- make.index.unique(z_xtsp, drop = TRUE)
+head(z_dup)
+
+# Round observations in z to the next hour
+z_round <- align.time(z_xtsp, n = 3600)
+head(z_round)
+```
+

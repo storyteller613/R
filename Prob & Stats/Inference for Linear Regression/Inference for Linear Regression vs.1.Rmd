@@ -1,0 +1,54 @@
+---
+title: "Inference for Linear Regression"
+Author: Jeff Gross
+output: html_notebook
+---
+
+#Libraries
+```{r}
+#Import libraries
+install.packages("mosaicData")
+library(mosaicData)
+data(RailTrail)
+install.packages("magrittr")
+library(magrittr)
+install.packages("tidyr")
+library(tidyr)
+install.packages("broom")
+library(broom)
+```
+
+#Regression output: example I
+```{r}
+# Load the mosaicData package and the RailTrail data
+library(mosaicData)
+data(RailTrail)
+
+# Fit a linear model
+ride_lm <- lm(volume~hightemp, data=RailTrail)
+
+# View the summary of your model
+summary(ride_lm)
+
+# Print the tidy model output
+ride_lm %>% tidy()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

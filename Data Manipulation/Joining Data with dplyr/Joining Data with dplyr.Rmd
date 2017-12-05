@@ -1,0 +1,418 @@
+---
+title: "Joining Data with dplyr"
+output: html_notebook
+author: "Jeff Gross"
+---
+
+#Load the dplyr and hflights package
+
+```{r}
+options(tibble.print_max = Inf)
+options(tibble.width = Inf)
+
+#get a def of a function
+getAnywhere(draw_roc_lines)
+
+#install packages
+install.packages("dplyr")
+install.packages("data.table")
+install.packages("dbplyr")
+install.packages("RMySQL")
+install.packages("DBI")
+install.packages("readr")
+install.packages("purrr")
+
+# Load packages
+library(readr)
+library(DBI)
+library(RMySQL)
+library(dbplyr)
+library(data.table)
+library(dplyr)
+library(purrr)
+
+```
+
+#A basic join
+Complete the code to join artists to bands. bands2 should contain all of the information in bands supplemented with information in artists.
+Print bands2 to the console to see the result.
+```{r}
+bands <- read_csv("~/R Scripts/bands.csv")
+artists <- read_csv("~/R Scripts/artists.csv")
+
+# Complete the code to join artists to bands
+bands2 <- left_join(bands, artists, by = c("first","last"))
+
+# Examine the results
+bands2
+```
+
+#Inner joins and full joins
+Join albums to songs in a way that returns only rows that contain information about both songs and albums.
+Join bands to artists to create a single table that contains all of the available data.
+```{r}
+albums <- read_csv("~/R Scripts/albums.csv")
+songs <- read_csv("~/R Scripts/songs.csv")
+
+# Join albums to songs using inner_join()
+inner_join(songs, albums, "album")
+
+# Join bands to artists using full_join()
+full_join(artists, bands,  c("first","last"))
+```
+#Pipes
+full_join(artists, bands, 
+          by = c("first", "last"))
+
+artists %>% 
+  full_join(bands, by = c("first", "last"))
+
+The code in the editor finds all of the known guitarists in the bands dataset. Rewrite the code to use %>%s instead of multiple function calls. The pipe %>% should be used three times and temp zero times.
+```{r}
+# Find guitarists in bands dataset (don't change)
+temp <- left_join(bands, artists, by = c("first", "last"))
+temp <- filter(temp, instrument == "Guitar")
+select(temp, first, last, band)
+
+# Reproduce code above using pipes
+bands %>% 
+  left_join(artists, by = c("first", "last")) %>%
+  filter(instrument == "Guitar") %>%
+  select(first, last, band)
+```
+#Practice with pipes and joins
+Examine the goal dataset by printing it to the console.
+Write a pipe that uses a full join and an inner join to combine artists, bands, and songs into goal2, a dataset identical to goal.
+Use setequal() to check that goal is identical to goal2.
+```{r}
+goal <- read_csv("~/R Scripts/goal.csv")
+
+# Examine the contents of the goal dataset
+goal
+
+# Create goal2 using full_join() and inner_join() 
+goal2 <- artists %>%
+  full_join(bands, c("first","last")) %>%
+  inner_join(songs,c("first","last"))
+  
+# Check that goal and goal2 are the same
+setequal(goal, goal2)
+```
+#Choose your joins
+Write a pipe that combines artists, bands, songs, and albums (in that order) into a single table, such that it contains all of the information in the datasets.
+```{r}
+# Create one table that combines all information
+artists %>%
+  full_join(bands, c("first","last")) %>%
+  full_join(songs, c("first","last")) %>%
+  full_join(albums, c("album","band"))
+```
+#Apply a semi-join
+Run the semi_join() command to see its output.
+Then fill in the blanks of the right_join(), filter(), and select() calls to create the same result.
+```{r}
+# View the output of semi_join()
+artists %>% 
+  semi_join(songs, by = c("first", "last"))
+
+# Create the same result
+artists %>% 
+  right_join(songs, by = c("first", "last")) %>% 
+  filter(!is.na(instrument)) %>% 
+  select(first, last, instrument)
+```
+#Exploring with semi-joins
+For the first pipe, use semi_join() to collect the albums in albums that were made by a band in bands.
+For the second pipe, use nrow() to count how many albums were made by a band in the dataset.
+```{r}
+albums %>% 
+  # Collect the albums made by a band
+  semi_join(bands, by = "band") %>% 
+  # Count the albums made by a band
+  nrow()
+```
+#A more precise way to filter?
+```{r}
+tracks <- read_csv("~/R Scripts/tracks.csv")
+tracks <- tbl_df(tracks)
+
+tracks %>% semi_join(
+  matches,
+  by = c("band", "year", "first")
+)
+
+tracks %>% filter(
+  (band == "The Beatles" & 
+     year == 1964 & first == "Paul") |
+    (band == "The Beatles" & 
+       year == 1965 & first == "John") |
+    (band == "Simon and Garfunkel" & 
+       year == 1966 & first == "Paul")
+)
+```
+#Apply an anti-join
+Use an anti_join() to return the rows of artists for which you don't have any bands info. Note: Don't forget to mention the by argument.
+```{r}
+# Return rows of artists that don't have bands info
+artists %>% 
+  anti_join(bands, by=c("first","last"))
+```
+Have you noticed that correct keys are as important to filtering joins as they were to mutating joins? They are!
+
+#Apply another anti-join
+labels describes the record labels of the albums in albums. Compare the spellings of album names in labels with the names in albums. Are any of the album names of labels mis-entered? Use anti_join() to check. Note: Don't forget to mention the by argument.
+```{r}
+labels <- read_csv("~/R Scripts/labels.csv")
+
+# Check whether album names in labels are mis-entered
+labels %>% 
+  anti_join(albums, by=c("album"))
+```
+#Which filtering join?
+Determine which key joins labels and songs.
+Use a filtering join to find the rows of songs that match a row in labels.
+Use nrow() to determine how many matches exist between labels and songs.
+```{r}
+# Determine which key joins labels and songs
+labels
+songs
+
+# Check your understanding
+songs %>% 
+  # Find the rows of songs that match a row in labels
+  semi_join(labels, by="album") %>% 
+  # Number of matches between labels and songs
+  nrow()
+```
+#How many songs are there?
+Use a set operation to create a dataset with every song contained on aerosmith and/or greatest_hits.
+Use nrow() to count the total number of songs.
+```{r}
+aerosmith <- read_csv("~/R Scripts/aerosmith.csv")
+greatest_hits <- read_csv("~/R Scripts/greatest_hits.csv")
+
+aerosmith %>% 
+  # Create the new dataset using a set operation
+  union(greatest_hits, aerosmith) %>% 
+  # Count the total number of songs
+  nrow()
+```
+#Greatest hits
+Use a set operation to create a dataset containing every track that is in both Aerosmith and Greatest Hits.
+```{r}
+# Create the new dataset using a set operation
+aerosmith %>% 
+  intersect(greatest_hits, aerosmith)
+```
+You can think of intersect() as the set operator equivalent of a semi-join. It is what you would use if your datasets contain the exact same variables.
+
+#Live! Bootleg songs
+Select just the song names from live.
+Select just the song names from greatest_hits.
+Use a set operation to create a dataset of songs in live that are not in greatest_hits.
+```{r}
+live <- read_csv("~/R Scripts/live.csv")
+
+# Select the song names from live
+live_songs <- live %>% select(song)
+
+# Select the song names from greatest_hits
+greatest_songs <- greatest_hits %>% select(song)
+
+# Create the new dataset using a set operation
+live_songs %>% 
+  setdiff(greatest_songs, live_songs)
+```
+#Multiple operations
+Select the songs from the live and greatest_hits datasets and call them live_songs and greatest_songs, respectively. Use the select() function to do this.
+Combine setdiff(), union(), and intersect() to return all of the songs that are in one of live_songs or greatest_songs, but not both. You will need to use all three functions and save some results along the way (i.e. you won't be able to do this with a single pipe.)
+```{r}
+# Select songs from live and greatest_hits
+live_songs <- select(live, song)
+greatest_songs <- select(greatest_hits, song)
+
+# Return the songs that only exist in one dataset
+greatest_songs_u <- live_songs %>%
+  union(greatest_songs)
+
+greatest_songs_int <- live_songs %>%
+  intersect(greatest_songs)
+
+greatest_songs_u %>%
+  setdiff(greatest_songs_int)
+```
+#Apply setequal
+Use identical() to determine whether definitive and complete contain the same songs in the same order.
+Use setequal() to determine whether definitive and complete contain the same songs in any order.
+Use setdiff() to see which songs (if any) are in definitive but not complete.
+Use setdiff() to see which songs (if any) are in complete but not definitive.
+```{r}
+definitive <- read_csv("~/R Scripts/definitive.csv")
+complete <- read_csv("~/R Scripts/complete.csv")
+
+definitive <- tbl_df(definitive)
+complete <- tbl_df(complete)
+
+# Check if same order: definitive and complete
+identical(definitive,complete)
+
+# Check if any order: definitive and complete
+setequal(definitive,complete)
+
+# Songs in definitive but not complete
+setdiff(definitive, complete)
+
+# Songs in complete but not definitive
+setdiff(complete,definitive)
+
+```
+#Apply setequal again
+Write a filtering join that returns songs in definitive that are not in complete. Are there any?
+Write a filtering join that returns songs in complete that are not in definitive. Are there any?
+```{r}
+# Return songs in definitive that are not in complete
+definitive %>% 
+  anti_join(complete)
+
+# Return songs in complete that are not in definitive
+complete %>% 
+  anti_join(definitive)
+```
+When your datasets contain the same variables, a setdiff() does the same thing as an anti_join() that uses every column as a key.
+
+#Comparing albums
+Use identical() to check if definitive and the union of complete and soundtrack contain the same songs in the same order.
+Use setequal() to check if definitive and the union of complete and soundtrack contain the same songs in any order.
+```{r}
+# Check if same order: definitive and union of complete and soundtrack
+identical(definitive, union(complete,soundtrack))
+
+# Check if any order: definitive and union of complete and soundtrack
+setequal(definitive, union(complete,soundtrack))
+
+#OR
+
+# Check if same order: definitive and union of complete and soundtrack
+complete %>%
+  union(soundtrack) %>%
+  identical(definitive)
+
+# Check if any order: definitive and union of complete and soundtrack
+complete %>%
+  union(soundtrack) %>%
+  setequal(definitive)
+```
+It looks like you found the only difference between the two anthologies.
+
+#Which bind?
+Examine side_one and side_two by printing them to the console.
+Use a bind to combine side_one and side_two into a single dataset.
+```{r}
+side_one <- read_csv("~/R Scripts/side_one.csv")
+side_two <- read_csv("~/R Scripts/side_two.csv")
+
+# Examine side_one and side_two
+side_one
+side_two
+
+# Bind side_one and side_two into a single dataset
+side_one %>% 
+  bind_rows(side_two)
+```
+#Bind columns
+Examine hank_years and hank_charts. How should you bind the two datasets?
+Use arrange() to reorder hank_years alphabetically by song title.
+Select just the year column of the result.
+Bind the year column to hank_charts.
+arrange() the resulting dataset chronologically by year, then alphabetically by song title within each year.
+```{r}
+hank_years <- read_csv("~/R Scripts/hank_years.csv")
+hank_charts <- read_csv("~/R Scripts/hank_charts.csv")
+
+# Examine hank_years and hank_charts
+hank_years
+hank_charts
+
+hank_years %>% 
+  # Reorder hank_years alphabetically by song title
+  arrange(song) %>% 
+  # Select just the year column
+  select(year) %>% 
+  # Bind the year column
+  bind_cols(hank_charts) %>% 
+  # Arrange the finished dataset
+  arrange(year, song)
+
+```
+
+
+```{r}
+hank_song <- c("Move It On Over",	"My Love for You (Has Turned to Hate)",	"Never Again (Will I Knock on Your Door)",	"On the Banks of the Old Ponchartrain",	"Pan American",	"Wealth Won't Save Your Soul",	"A Mansion on the Hill",	"Honky Tonkin'",	"I Saw the Light",	"I'm So Lonesome I Could Cry",	"My Sweet Love Ain't Around",	"I'm Satisfied with You",	"Lost Highway",	"Lovesick Blues",	"Mind Your Own Business",	"My Bucket's Got a Hole in It",	"Never Again (Will I Knock on Your Door)",	"Wedding Bells",	"You're Gonna Change (Or I'm Gonna Leave)",	"I Just Don't Like This Kind of Living",	"Long Gone Lonesome Blues",	"Moanin' the Blues",	"My Son Calls Another Man Daddy",	"Nobody's Lonesome for Me",	"They'll Never Take Her Love from Me",	"Why Don't You Love Me",	"Why Should We Try Anymore",	"(I Heard That) Lonesome Whistle",	"Baby, We're Really in Love",	"Cold, Cold Heart",	"Crazy Heart",	"Dear John",	"Hey Good Lookin'",	"Howlin' At the Moon",	"I Can't Help It (If I'm Still in Love With You)",	"Half as Much",	"Honky Tonk Blues",	"I'll Never Get Out of This World Alive",	"Jambalaya (On the Bayou)",	"Settin' the Woods on Fire",	"You Win Again",	"Calling You",	"I Won't Be Home No More",	"Kaw-Liga",	"Take These Chains from My Heart",	"Weary Blues from Waitin'",	"Your Cheatin' Heart",	"(I'm Gonna) Sing, Sing, Sing",	"How Can You Refuse Him Now",	"I'm a Long Gone Daddy",	"You Better Keep It on Your Mind",	"A Teardrop on a Rose",	"At the First Fall of Snow",	"Mother Is Gone",	"Please Don't Let Me Love You",	"Thank God",	"A Home in Heaven",	"California Zephyr",	"Singing Waterfall",	"There's a Tear in My Beer",	"Leave Me Alone with the Blues",	"Ready to Go Home",	"The Waltz of the Wind",	"Just Waitin'",	"The Pale Horse and His Rider",	"Kaw-Liga",	"There's No Room in My Heart for the Blues")
+
+hank_peak <- c(4,	NA,	NA,	NA,	NA,	NA,	12,	14,	NA,	2,	NA,	NA,	12,	1,	5,	2,	6,	2,	4,	5,	1,	1,	9,	9,	5,
+1,	9,	9,	4,	1,	4,	8,	1,	3,	2,	2,	2,	1,	1,	2,	10,	NA,	4,	1,	1,	7,	1,	NA,	NA,	6,
+NA,	NA,	NA,	NA,	9,	NA,	NA,	NA,	NA,	7,	NA,	NA,	NA,	NA,	NA,	NA,	NA)
+
+hank_year <- c(1947,	1947,	1947,	1947,	1947,	1947,	1948,	1948,	1948,	1948,	1948,	1949,	1949,	1949,	1949,
+1949,	1949,	1949,	1949,	1950,	1950,	1950,	1950,	1950,	1950,	1950,	1950,	1951,	1951,	1951,
+1951,	1951,	1951,	1951,	1951,	1952,	1952,	1952,	1952,	1952,	1952,	1953,	1953,	1953,	1953,
+1953,	1953,	1954,	1954,	1954,	1954,	1955,	1955,	1955,	1955,	1955,	1956,	1956,	1956,	1956,
+1957,	1957,	1957,	1958,	1965,	1966,	1989)
+
+# Make combined data frame using data_frame()
+data_frame(year=hank_year, song=hank_song, peak=hank_peak) %>% 
+  # Extract songs where peak equals 1
+  filter(peak==1)
+```
+#Lists of rows (data frames)
+Examine the contents of michael.
+Replace the commented code in the editor with a call to a dplyr function, which should bind the datasets in the list into a single data frame, adding an album column as it does.
+```{r}
+michael <- read_csv("~/R Scripts/michael.csv")
+
+# Examine the contents of michael
+michael
+
+# as_data_frame(michael) %>% 
+  bind_rows(michael, .id="album") %>%
+  group_by(album) %>% 
+  mutate(rank = min_rank(peak)) %>% 
+  filter(rank == 1) %>% 
+  select(-rank, -peak)
+```
+Bind_rows() makes a useful complement to as_data_frame().
+
+#Results
+Coerce seventies$year into a useful numeric.
+Bind the updated version of seventies to sixties and examine the results. Make sure they are sensible.
+```{r}
+seventies <- read_csv("~/R Scripts/seventies.csv")
+sixties <- read_csv("~/R Scripts/sixties.csv")
+
+seventies %>% 
+  # Coerce seventies$year into a useful numeric
+  mutate(year = as.numeric(as.character(seventies$year))) %>% 
+  # Bind the updated version of seventies to sixties
+  bind_rows(sixties) %>% 
+  arrange(year)
+```
+#Spot the key
+Load the tibble package.
+Use rownames_to_column() to add the row names of stage_songs to the data frame as a column named song.
+Left join stage_writers to stage_songs.
+```{r}
+stage_songs <- read_csv("~/R Scripts/stage_songs.csv")
+rownames(stage_songs) <- stage_songs$X1
+stage_songs$X1 <- NULL
+stage_writers <- read_csv("~/R Scripts/stage_writers.csv")
+
+# Load the tibble package
+library(tibble)
+
+stage_songs %>% 
+  # Add row names as a column named song
+  rownames_to_column(var="song") %>% 
+  # Left join stage_writers to stage_songs
+  left_join(stage_writers, by="song")
+```
+

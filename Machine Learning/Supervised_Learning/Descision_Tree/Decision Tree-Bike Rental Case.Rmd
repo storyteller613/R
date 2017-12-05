@@ -1,0 +1,427 @@
+---
+title: "Decision Tree-Bike Rental Case"
+author: "Jeff Gross 2017 Copyright"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+#Poisson and quasipoisson regression to predict counts
+
+####Background: 
+![Caption for the picture.](C:/Users\Y\Documents\poisson_quasipoisson.png)
+![Caption for the picture.](C:/Users\Y\Documents\poisson_quasipoisson_2.png)
+
+####For many real life processes, mean is very different from the variance, then use quasipoisson.
+
+####The data frame has the columns:
+	*cnt: the number of bikes rented in that hour (the outcome)
+	*hr: the hour of the day (0-23, as a factor)
+	*holiday: TRUE/FALSE
+	*workingday: TRUE if neither a holiday nor a weekend, else FALSE
+	*weathersit: categorical, "Clear to partly cloudy"/"Light Precipitation"/"Misty"
+	*temp: normalized temperature in Celsius
+	*atemp: normalized "feeling" temperature in Celsius
+	*hum: normalized humidity
+	*windspeed: normalized windspeed
+	*instant: the time index -- number of hours since beginning of data set (not a variable)
+	*mnth and yr: month and year indices (not variables)
+
+#Fit a model to predict bike rental counts
+
+###Task: Build a model to predict the number of bikes rented in an hour as a function of the weather, the type of day (holiday, working day, or weekend), and the time of day. 
+
+###Result: Fit a (quasi)poisson model to predict counts! As with a logistic model, you hope for a pseudo-R2 near 1.  It is .78. 
+
+```{r}
+load("C:/Users/Y/AppData/Local/Temp/Bikes.RData")
+
+outcome = c("cnt")
+
+vars = c("hr", "holiday", "workingday", "weathersit", "temp","atemp","hum","windspeed")
+
+# bikesJuly is in the workspace
+str(bikesJuly)
+
+bikesJuly_1 <- mutate(bikesJuly, day = (instant - min(instant))/24)
+
+# Plot August bike rentals
+bikesJuly_1 %>% 
+  # plot value by instant
+  ggplot(aes(x = day, y = cnt)) + 
+  geom_point() + 
+  geom_line() + 
+  scale_color_brewer(palette = "Dark2") + 
+  ggtitle("Count of bike rentals in August by the hour")
+
+
+# The outcome column
+outcome
+
+# The inputs to use
+vars
+
+# Create the formula string for bikes rented as a function of the inputs
+(fmla <- paste(outcome, "~", paste(vars, collapse = " + ")))
+
+# Calculate the mean and variance of the outcome, var(~45864) > mean(~274)
+(mean_bikes <- mean(bikesJuly$cnt))
+(var_bikes <- var(bikesJuly$cnt))
+
+
+# Fit the model
+bike_model <- glm(fmla, data=bikesJuly, family=quasipoisson)
+
+# Call glance
+(perf <- glance(bike_model))
+
+# Calculate pseudo-R-squared
+(pseudoR2 <- 1 - perf$deviance/perf$null.deviance)
+```
+
+#Predict bike rentals on new data
+
+###Task: Use the bike_model you built to make predictions for the month of August. 
+
+###Result: (Quasi)poisson models predict non-negative rates, making them useful for count or frequency data. 
+
+```{r}
+# bikesAugust is in the workspace
+str(bikesAugust)
+bikesAugust_qp=bikesAugust
+
+# bike_model is in the workspace
+summary(bike_model)
+
+# Make predictions on August data
+bikesAugust_qp$pred  <- predict(bike_model, type="response", newdata=bikesAugust)
+
+# Calculate the RMSE
+bikesAugust_qp %>% 
+  mutate(residual = pred-cnt) %>%
+  summarize(rmse  = sqrt(mean(residual^2)))
+
+sd(bikesAugust_qp$cnt)
+
+# Plot predictions vs cnt (pred on x-axis)
+ggplot(bikesAugust_qp, aes(x = pred, y = cnt)) +
+  geom_point() + 
+  geom_abline(color = "darkblue")
+
+```
+
+#Visualize the Bike Rental Predictions
+
+###Task: compare the predictions and actual rentals on an hourly basis, for the first 14 days of August.
+
+###Result: This model mostly identifies the slow and busy hours of the day, although it often underestimates peak demand. 
+
+```{r}
+# Plot predictions and cnt by date/time
+bikesAugust_qp %>% 
+  # set start to 0, convert unit to days
+  mutate(instant = (instant - min(instant))/24) %>%  
+  # gather cnt and pred into a value column
+  tidyr::gather(key = valuetype, value = value, cnt, pred) %>%
+  filter(instant < 14) %>% # restric to first 14 days
+  # plot value by instant
+  ggplot(aes(x = instant, y = value, color = valuetype, linetype = valuetype)) + 
+  geom_point() + 
+  geom_line() + 
+  scale_x_continuous("Day", breaks = 0:14, labels = 0:14) + 
+  scale_color_brewer(palette = "Dark2") + 
+  ggtitle("Predicted August bike rentals, Quasipoisson model")
+```
+
+#Decision Trees
+
+![Caption for the picture.](C:/Users\Y\Documents\decision_tree_1.png)
+
+![Caption for the picture.](C:/Users\Y\Documents\decision_tree_2.png)
+
+![Caption for the picture.](C:/Users\Y\Documents\decision_tree_3.png)
+
+![Caption for the picture.](C:/Users\Y\Documents\decision_tree_4.png)
+
+![Caption for the picture.](C:/Users\Y\Documents\decision_tree_5.png)
+
+#Random Forest
+
+![Caption for the picture.](C:/Users\Y\Documents\random_forest_1.png)
+
+![Caption for the picture.](C:/Users\Y\Documents\random_forest_2.png)
+
+#Build a random forest model for bike rentals
+
+####Background: Use the rangerpackage to fit the random forest model. For this exercise, the key arguments to the ranger() call are: **formula**, **data**, **num.trees**: the number of trees in the forest,  **respect.unordered.factors**: Specifies how to treat unordered factor variables. We recommend setting this to "order" for regression, **seed**: because this is a random algorithm, you will set the seed to get reproducible results
+
+###Task: Build a model to predict the number of bikes rented in an hour as a function of the weather, the type of day (holiday, working day, or weekend), and the time of day.  The model will be trained on data from the month of July.
+
+###Result: Fit a model to the data with a respectable R-squared of .82. 
+
+```{r}
+# bikesJuly is in the workspace
+str(bikesJuly)
+
+# Random seed to reproduce results
+seed=423563
+
+# The outcome column
+(outcome <- "cnt")
+
+# The input variables
+(vars <- c("hr", "holiday", "workingday", "weathersit", "temp", "atemp", "hum", "windspeed"))
+
+# Create the formula string for bikes rented as a function of the inputs
+(fmla <- paste(outcome, "~", paste(vars, collapse = " + ")))
+
+# Load the package ranger
+library(ranger)
+
+# Fit and print the random forest model
+(bike_model_rf <- ranger(fmla, # formula 
+                         bikesJuly, # data
+                         num.trees = 500, 
+                         respect.unordered.factors = "order", 
+                         seed = seed))
+```
+#Predict bike rentals with the random forest model
+
+###Task: Use the bike_model_rf model to predict bike rentals for the month of August.
+
+###Result:This random forest model outperforms the poisson count model on the same data; it is discovering more complex non-linear or non-additive relationships in the data. 
+
+```{r}
+# bikesAugust is in the workspace
+str(bikesAugust)
+bikesAugust_rf=bikesAugust
+
+# bike_model_rf is in the workspace
+bike_model_rf
+
+# Make predictions on the August data
+bikesAugust_rf$pred <- predict(bike_model_rf, bikesAugust)$predictions
+
+# Calculate the RMSE of the predictions
+bikesAugust_rf %>% 
+  mutate(residual = cnt-pred)  %>% # calculate the residual
+  summarize(rmse  = sqrt(mean(residual^2)))      # calculate rmse
+
+# Plot actual outcome vs predictions (predictions on x-axis)
+ggplot(bikesAugust_rf, aes(x = pred, y = cnt)) + 
+  geom_point() + 
+  geom_abline()
+```
+#Visualize random forest bike model predictions
+
+####Background:
+
+![Caption for the picture.](C:/Users\Y\Documents\quasipoissonplot.png)
+
+###Task: Visualize the random forest model's August predictions as a function of time. 
+
+###Result: The random forest model captured the day-to-day variations in peak demand better than the quasipoisson model, but it still underestmates peak demand, and also overestimates minimum demand. So there is still room for improvement. 
+
+```{r}
+
+# Plot predictions and cnt by date/time
+bikesAugust_rf %>% 
+  mutate(instant = (instant - min(instant))/24) %>%  # set start to 0, convert unit to days
+  gather(key = valuetype, value = value, cnt, pred) %>%
+  filter(instant < 14) %>% # first two weeks
+  ggplot(aes(x = instant, y = value, color = valuetype, linetype = valuetype)) + 
+  geom_point() + 
+  geom_line() + 
+  scale_x_continuous("Day", breaks = 0:14, labels = 0:14) + 
+  scale_color_brewer(palette = "Dark2") + 
+  ggtitle("Predicted August bike rentals, Random Forest plot")
+```
+#Gradient boosting machines
+
+![Caption for the picture.](C:/Users\Y\Documents\gradient_1.png)
+
+####Ensemble model that builds up a model by incrementally improving the existing one.  Start with single & usually shallow tree to the data, this is M1. 
+
+![Caption for the picture.](C:/Users\Y\Documents\gradient_2.png)
+
+####Fit a tree to the residuals of the model and find the weighted sum of that with the first one that gives the best fit, this is M2.
+
+![Caption for the picture.](C:/Users\Y\Documents\gradient_3.png)
+
+####For regularized boosting, decrease the learning by a factor aiya between 0 and 1.  Aiya close to 1 will give you faster learning , but increases the risk of overfit.  Smaller aiyda slows the learning, but lessens the risk of overfit.  Repeat until either the residuals are small enough or the max # of iterations is reached.
+
+
+![Caption for the picture.](C:/Users\Y\Documents\gradient_4.png)
+
+####Because gradient boosting optimizes error on the training data, it is very easy to overfit the model.  Best practice is to estimate out-of-sample error via cross-validation for each incremental model.  Then retroactively decide how many trees to use.
+
+![Caption for the picture.](C:/Users\Y\Documents\gradient_5.png)
+
+
+![Caption for the picture.](C:/Users\Y\Documents\gradient_7.png)
+
+![Caption for the picture.](C:/Users\Y\Documents\gradient_8.png)
+
+![Caption for the picture.](C:/Users\Y\Documents\gradient_6.png)
+
+#Find the right number of trees for a gradient boosting machine
+
+####Background: the key arguments to the xgb.cv() call are:
+####	* data: a numeric matrix.
+####	* label: vector of outcomes (also numeric).
+####	* nrounds: the maximum number of rounds (trees to build).
+####	* nfold: the number of folds for the cross-validation. 5 is a good number.
+####	* objective: "reg:linear" for continuous outcomes.
+####	* eta: the learning rate.
+####	* max_depth: depth of trees.
+####	* early_stopping_rounds: after this many rounds without improvement, stop.
+####	* verbose: 0 to stay silent.
+
+####In most cases, ntrees.test is less than ntrees.train. The training error keeps decreasing even after the test error starts to increase. It's important to use cross-validation to find the right number of trees (as determined by ntrees.test) and avoid an overfit model. 
+
+###Task:  Build a gradient boosting model to predict the number of bikes rented in an hour as a function of the weather and the type and time of day. The model will be trained on data from the month of July.
+
+###Result: Gradient boosting model built.
+
+```{r}
+bikesJuly.treat <- read_csv("~/R Scripts/bikesJuly.treat.csv")
+
+head(bikesJuly.treat)
+rownames(bikesJuly.treat) <- bikesJuly.treat$X1
+bikesJuly.treat$X1 <- NULL
+
+load("C:/Users/Y/AppData/Local/Temp/Bikes-1.RData")
+
+# The July data is in the workspace
+#ls()
+
+# Load the package xgboost
+install.packages("xgboost")
+library(xgboost)
+
+# Run xgb.cv
+cv <- xgb.cv(data = as.matrix(bikesJuly.treat), 
+            label = bikesJuly$cnt,
+            nrounds = 100,
+            nfold = 5,
+            objective = "reg:linear",
+            eta = .3,
+            max_depth = 6,
+            early_stopping_rounds = 10,
+            verbose = 0    # silent
+)
+
+# Get the evaluation log 
+elog <- as.data.frame(cv$evaluation_log)
+
+# Determine and print how many trees minimize training and test error
+elog %>% 
+   summarize(ntrees.train = which.min(train_rmse_mean),   # find the index of min(train_rmse_mean)
+             ntrees.test  = which.min(test_rmse_mean))   # find the index of min(test_rmse_mean)
+```
+
+
+
+#Fit an xgboost bike rental model and predict
+
+###Task: Fit a gradient boosting model using xgboost() to predict the number of bikes rented in an hour as a function of the weather and the type and time of day. Train the model on data from the month of July and predict on data for the month of August.
+
+###Result: The scatterplot looked good, but the model made some negative predictions.
+
+```{r}
+bikesAugust.treat <- read_csv("~/R Scripts/bikesAugust.treat.csv")
+
+head(bikesAugust.treat)
+rownames(bikesAugust.treat) <- bikesAugust.treat$X1
+bikesAugust.treat$X1 <- NULL
+
+bikesAugust_gb = bikesAugust
+
+# Examine the workspace
+#ls()
+
+# The number of trees to use, as determined by xgb.cv
+ntrees=95
+
+# Run xgboost
+bike_model_xgb <- xgboost(data = as.matrix(bikesJuly.treat), # training data as matrix
+                   label = bikesJuly$cnt,  # column of outcomes
+                   nrounds = ntrees,       # number of trees to build
+                   objective = "reg:linear", # objective
+                   eta = .3,
+                   depth = 6,
+                   verbose = 0  # silent
+)
+
+# Make predictions
+bikesAugust_gb$pred <- predict(bike_model_xgb, as.matrix(bikesAugust.treat))
+
+# Plot predictions (on x axis) vs actual bike rental count
+ggplot(bikesAugust_gb, aes(x = pred, y = cnt)) + 
+  geom_point() + 
+  geom_abline()
+```
+
+#Evaluate the xgboost bike rental model
+
+###Task: Evaluate the gradient boosting model bike_model_xgb, using data from the month of August. Compare this model's RMSE for August to the RMSE from the poisson model (approx. 112.6) and the random forest model (approx. 96.7)
+
+###Result: The gradient boosting model, RMSE=76.5, was superior to the poisson model, RMSE=112.6, and the random forest model, RMSE=96.7, in terms of RMSE, Even though this gradient boosting made some negative predictions, overall it makes smaller errors than the previous two models. Perhaps rounding negative predictions up to zero is a reasonable tradeoff.
+```{r}
+# bikesAugust is in the workspace
+str(bikesAugust_gb)
+
+# Calculate RMSE
+bikesAugust_gb %>%
+  mutate(residuals = cnt - pred) %>%
+  summarize(rmse =  sqrt(mean(residuals^2)))
+```
+#Visualize the xgboost bike rental model
+
+Task: Compare the gradient boosting model's predictions to the other two models as a function of time.
+
+Result: The gradient boosting pattern captures rental variations due to time of day and other factors better than the previous models.
+
+```{r}
+# Print quasipoisson_plot
+bikesAugust_qp %>% 
+  # set start to 0, convert unit to days
+  mutate(instant = (instant - min(instant))/24) %>%  
+  # gather cnt and pred into a value column
+  tidyr::gather(key = valuetype, value = value, cnt, pred) %>%
+  filter(instant < 14) %>% # restric to first 14 days
+  # plot value by instant
+  ggplot(aes(x = instant, y = value, color = valuetype, linetype = valuetype)) + 
+  geom_point() + 
+  geom_line() + 
+  scale_x_continuous("Day", breaks = 0:14, labels = 0:14) + 
+  scale_color_brewer(palette = "Dark2") + 
+  ggtitle("Predicted August bike rentals, Quasipoisson model")
+
+# Print randomforest_plot
+bikesAugust_rf %>% 
+  mutate(instant = (instant - min(instant))/24) %>%  # set start to 0, convert unit to days
+  gather(key = valuetype, value = value, cnt, pred) %>%
+  filter(instant < 14) %>% # first two weeks
+  ggplot(aes(x = instant, y = value, color = valuetype, linetype = valuetype)) + 
+  geom_point() + 
+  geom_line() + 
+  scale_x_continuous("Day", breaks = 0:14, labels = 0:14) + 
+  scale_color_brewer(palette = "Dark2") + 
+  ggtitle("Predicted August bike rentals, Random Forest plot")
+
+
+# Plot predictions and actual bike rentals as a function of time (days)
+bikesAugust_gb %>% 
+  mutate(instant = (instant - min(instant))/24) %>%  # set start to 0, convert unit to days
+  gather(key = valuetype, value = value, cnt, pred) %>%
+  filter(instant < 14) %>% # first two weeks
+  ggplot(aes(x = instant, y = value, color = valuetype, linetype = valuetype)) + 
+  geom_point() + 
+  geom_line() + 
+  scale_x_continuous("Day", breaks = 0:14, labels = 0:14) + 
+  scale_color_brewer(palette = "Dark2") + 
+  ggtitle("Predicted August bike rentals, Gradient Boosting model")
+```
+
+

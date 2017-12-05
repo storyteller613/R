@@ -1,0 +1,396 @@
+---
+title: "Introduction to Time Series"
+author: Jeff Gross
+output: html_notebook
+---
+
+#Basic Time Series Models
+##White Noise
+##Random Walk
+##Autoregression
+##Simple Moving Average
+
+#Exploring raw time series
+
+##print() command, which displays the Start, End, and Frequency of your data along with the observations
+##length() function, which tells you the total number of observations in your data.
+
+```{r}
+data_vector <- c(1120,	1160,	963,	1210,	1160,	1160,	813,	1230,	1370,	1140,	995,	935,	1110,	994,	1020,
+960,	1180,	799,	958,	1140,	1100,	1210,	1150,	1250,	1260,	1220,	1030,	1100,	774,	840,
+874,	694,	940,	833,	701,	916,	692,	1020,	1050,	969,	831,	726,	456,	824,	702,
+1120,	1100,	832,	764,	821,	768,	845,	864,	862,	698,	845,	744,	796,	1040,	759,
+781,	865,	845,	944,	984,	897,	822,	1010,	771,	676,	649,	846,	812,	742,	801,
+1040,	860,	874,	848,	890,	744,	749,	838,	1050,	918,	986,	797,	923,	975,	815,
+1020,	906,	901,	1170,	912,	746,	919,	718,	714,	740)					
+
+length(data_vector)
+
+# Convert data_vector to a ts object with start = 2004 and frequency = 4
+Nile <- ts(data_vector, start=1871, frequency=1)
+
+# Print the Nile dataset
+print(Nile, Start=1871, End=1970)
+
+# List the number of observations in the Nile dataset
+length(Nile)
+
+# Display the first 10 elements of the Nile dataset
+head(Nile, 10)
+
+# Display the last 12 elements of the Nile dataset
+tail(Nile, 12)
+```
+#Basic time series plots
+
+```{r}
+# Plot the Nile data
+plot(Nile)
+
+# Plot the Nile data with xlab and ylab arguments
+plot(Nile, xlab = "Year", ylab = "River Volume (1e9 m^{3})")
+
+# Plot the Nile data with xlab, ylab, main, and type arguments
+plot(Nile, xlab = "Year", ylab = "River Volume (1e9 m^{3})", main = "Annual River Nile Volume at Aswan, 1871-1970", type ="b")
+```
+#What does the time index tell us?
+
+###Result: The time series discrete_data shown in the top figure has 20 observations, with one observation appearing at each of the discrete time indices 1 through 20.  The time series continuous_series shown in the bottom figure also has 20 observations, it is following the same periodic pattern as discrete_data, but its observations are not evenly spaced. 
+```{r}
+continuous_time_index <- c(1.210322,	1.746137,	2.889634,	3.591384,	5.462065,	5.510933,	7.074295,
+8.264398,	9.373382,	9.541063,	11.161122,	12.378371,	13.390559,	14.06628,
+15.093547,	15.864515,	16.857413,	18.091457,	19.365451,	20.180524)
+
+continuous_series <- c(0.56889468,	0.76630408,	0.99207512,	0.97481741,	0.3991232,	0.37660246,
+-0.38532033,	-0.83635852,	-0.99966983,	-0.99831019,	-0.6462228,	-0.09386151,
+0.40052909,	0.68160578,	0.95318159,	0.99693803,	0.83934194,	0.37003754,
+-0.25509676,	-0.61743983)
+
+# Plot the continuous_series using continuous time indexing
+par(mfrow=c(2,1))
+plot(continuous_time_index,continuous_series, type = "b")
+
+# Make a discrete time index using 1:20 
+discrete_time_index <-1:20
+
+# Now plot the continuous_series using discrete time indexing
+plot(discrete_time_index,continuous_series, type = "b")
+```
+#Identifying the sampling frequency
+
+#start() and end() functions return the time index of the first and last observations, respectively. 
+#time() function calculates a vector of time indices, with one element for each time index on which the series was observed.
+#deltat() function returns the fixed time interval between observations
+#frequency() function returns the number of observations per unit time.
+#cycle() function returns the position in the cycle of each observation.
+
+```{r}
+data_vector <- c(112,	118,	132,	129,	121,	135,	148,	148,	136,	119,	104,	118,
+115,	126,	141,	135,	125,	149,	170,	170,	158,	133,	114,	140,
+145,	150,	178,	163,	172,	178,	199,	199,	184,	162,	146,	166,
+171,	180,	193,	181,	183,	218,	230,	242,	209,	191,	172,	194,
+196,	196,	236,	235,	229,	243,	264,	272,	237,	211,	180,	201,
+204,	188,	235,	227,	234,	264,	302,	293,	259,	229,	203,	229,
+242,	233,	267,	269,	270,	315,	364,	347,	312,	274,	237,	278,
+284,	277,	317,	313,	318,	374,	413,	405,	355,	306,	271,	306,
+315,	301,	356,	348,	355,	422,	465,	467,	404,	347,	305,	336,
+340,	318,	362,	348,	363,	435,	491,	505,	404,	359,	310,	337,
+360,	342,	406,	396,	420,	472,	548,	559,	463,	407,	362,	405,
+417,	391,	419,	461,	472,	535,	622,	606,	508,	461,	390,	432)
+
+# Convert data_vector to a ts object with start = 2004 and frequency = 4
+AirPassengers <- ts(data_vector, start=1949, frequency=12)
+
+# Plot AirPassengers
+plot(AirPassengers)
+
+# View the start and end dates of AirPassengers
+start(AirPassengers)
+end(AirPassengers)
+
+# Use time(), deltat(), frequency(), and cycle() with AirPassengers 
+time(AirPassengers)
+deltat(AirPassengers)
+frequency(AirPassengers)
+cycle(AirPassengers)
+```
+#Missing values
+
+```{r}
+data_vector <- c(112,	118,	132,	129,	121,	135,	148,	148,	136,	119,	104,	118,
+115,	126,	141,	135,	125,	149,	170,	170,	158,	133,	114,	140,
+145,	150,	178,	163,	172,	178,	199,	199,	184,	162,	146,	166,
+171,	180,	193,	181,	183,	218,	230,	242,	209,	191,	172,	194,
+196,	196,	236,	235,	229,	243,	264,	272,	237,	211,	180,	201,
+204,	188,	235,	227,	234,	264,	302,	293,	259,	229,	203,	229,
+242,	233,	267,	269,	270,	315,	364,	347,	312,	274,	237,	278,
+NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,
+315,	301,	356,	348,	355,	422,	465,	467,	404,	347,	305,	336,
+340,	318,	362,	348,	363,	435,	491,	505,	404,	359,	310,	337,
+360,	342,	406,	396,	420,	472,	548,	559,	463,	407,	362,	405,
+417,	391,	419,	461,	472,	535,	622,	606,	508,	461,	390,	432)
+
+# Convert data_vector to a ts object with start = 2004 and frequency = 4
+AirPassengers <- ts(data_vector, start=1949, frequency=12)
+class(AirPassengers)
+
+# Plot the AirPassengers data
+plot(AirPassengers)
+
+# Compute the mean of AirPassengers
+mean(AirPassengers, na.rm=TRUE)
+
+# Impute mean values to NA in AirPassengers
+AirPassengers[85:96] <- mean(AirPassengers_m, na.rm = TRUE)
+
+# Generate another plot of AirPassengers
+plot(AirPassengers)
+
+# Add the complete AirPassengers data to your plot
+rm(AirPassengers)
+points(AirPassengers, type = "l", col = 2, lty = 3)
+
+
+```
+#Creating a time series object with ts()
+
+```{r}
+data_vector <- c(2.0521941073,	4.2928852797,	3.3294132944,	3.508595067,	0.0009576938,
+1.9217186345,	0.7978134128,	0.2999543435,	0.9435687536,	0.5748283388,
+-0.0034005903,	0.3448649176,	2.2229761136,	0.1763144576,	2.709762277,
+1.2501948965,	-0.4007164754,	0.8852732121,	-1.5852420266,	-2.2829278891,
+-2.560953129,	-3.1259963754,	-2.8660295895,	-1.7847009207,	-1.8894912908,
+-2.7255351194,	-2.10331418,	-0.0174256893,	-0.3613204151,	-2.9008403327,
+-3.2847440927,	-2.8684594718,	-1.9505074437,	-4.8801892525,	-3.2634605353,
+-1.6396062522,	-3.301257584,	-2.6331245433,	-1.7058354022,	-2.2119825061,
+-0.5170595186,	0.0752508095,	-0.8406994716,	-1.4022683487,	-0.138211423,
+-1.4065954703,	-2.3046941055,	1.5073891432,	0.7118679477,	-1.1300519022)
+
+# Use print() and plot() to view data_vector
+print(data_vector)
+plot(data_vector)
+
+# Convert data_vector to a ts object with start = 2004 and frequency = 4
+time_series <- ts(data_vector, start=2004, frequency=4)
+
+# Use print() and plot() to view time_series
+print(time_series)
+  plot(time_series)
+```
+#Testing whether an object is a time series
+
+```{r}
+# Check whether data_vector and time_series are ts objects
+is.ts(data_vector)
+is.ts(time_series)
+
+# Check whether Nile is a ts object
+is.ts(Nile)
+
+# Check whether AirPassengers is a ts object
+is.ts(AirPassengers)
+```
+#Plotting a time series object
+
+```{r}
+eu_stocks <- EuStockMarkets
+
+#eu_stocks <- read_csv("~/R Scripts/eu_stocks.csv")
+#ts(eu_stocks, start=c(1991, 130) , End=c(1998, 169), frequency=260)
+
+# Check whether eu_stocks is a ts object
+is.ts(eu_stocks)
+
+# View the start, end, and frequency of eu_stocks
+start(eu_stocks)
+end(eu_stocks)
+frequency(eu_stocks)
+
+# Generate a simple plot of eu_stocks
+plot(eu_stocks)
+
+# Use ts.plot with eu_stocks
+ts.plot(eu_stocks, col = 1:4, xlab = "Year", ylab = "Index Value", main = "Major European Stock Indices, 1991-1998")
+
+# Add a legend to your ts.plot
+legend("topleft", colnames(eu_stocks), lty = 1, col = 1:4, bty = "n")
+```
+##Removing trends in variability via the logarithmic transformation
+
+![Log Transform](C:/Users\Y\Documents\1.R_Scripts\ML\Time_Series\Intro_Time_Series\log_transform.png)
+
+![Log Transform](C:/Users\Y\Documents\1.R_Scripts\ML\Time_Series\Intro_Time_Series\diff_func.png)
+
+#Removing trends in variability via the logarithmic transformation
+
+
+```{r}
+rapid_growth <- c(947.4753,	886.5153,	1074.8943,	1101.1307,	1130.1855,	975.8495,	948.161,
+1177.8227,	1227.1271,	976.9957,	836.7089,	1323.6047,	852.3532,	1200.8262,
+1274.4788,	1349.2614,	1102.6334,	1324.8566,	1268.7187,	1058.2289,	1204.0872,
+1084.6503,	1284.4305,	1195.2843,	1058.4262,	1188.0577,	1166.5934,	1064.6946,
+1429.0685,	1070.8528,	1539.3305,	1467.1571,	1127.7058,	1296.0717,	1555.2741,
+1332.9037,	1315.4236,	1189.2462,	1482.4339,	1240.9287,	1237.772,	1468.6083,
+1328.5457,	1589.5078,	1373.163,	1503.5563,	1659.9376,	1704.6137,	1550.4638,
+1625.8026,	1873.8582,	1370.6209,	1439.7114,	1447.4369,	1579.9158,	1681.2571,
+1661.6059,	1311.8468,	1326.0308,	1323.0995,	1550.4863,	1606.2042,	1768.5401,
+1509.8368,	1592.1086,	1627.6188,	1544.6329,	1439.5234,	1682.3518,	1850.7097,
+1673.3801,	1832.4272,	1672.2672,	1781.5768,	1659.2899,	1970.0389,	2044.7124,
+1929.0902,	1891.7042,	1487.1577,	2013.8722,	1796.7886,	1977.0183,	1516.9552,
+1650.6039,	1523.2834,	1696.6181,	1627.2609,	1787.2968,	1567.2874,	1881.9963,
+2318.9833,	1941.9879,	1820.2797,	2154.8123,	2261.5471,	2052.2214,	2079.171,
+2010.0609,	2145.2606,	1775.3008,	2013.407)		
+
+# Log rapid_growth
+linear_growth <- log(rapid_growth)
+  
+# Plot linear_growth using ts.plot()
+ ts.plot(linear_growth)
+
+```
+##Removing trends in level by differencing
+
+##Differencing a time series can remove a time trend.
+  
+```{r}
+z = c(6.226447,	6.103354,	6.296341,	6.24623,	6.228432,	6.282297,	6.208447,	6.209721, 6.358273,	6.28573, 6.293874,	6.160147,	6.311715,	6.344602,	6.259419,	6.188675,
+6.387907,	6.38211,	6.423225,	6.431842,	6.408735,	6.375087,	6.317445,	6.467881,
+6.233822,	6.408684,	6.402831,	6.419378,	6.300629,	6.508489,	6.532526,	6.422568,
+6.566936,	6.542901,	6.524926,	6.490936,	6.465681,	6.399477,	6.502434,	6.478457,
+6.407031,	6.546325,	6.463969,	6.752004,	6.503283,	6.351743,	6.674225,	6.622193,
+6.414761,	6.437192,	6.725393,	6.461291,	6.602355,	6.649363,	6.532169,	6.503933,
+6.569399,	6.822398,	6.486327,	6.55179,	6.527217,	6.66152,	6.573239,	6.694918,
+6.710255,	6.48751,	6.597609,	6.650976,	6.463346,	6.83756,	6.523087,	6.895969,
+6.499635,	6.701381,	6.783788,	6.82901,	6.87671,	6.655864,	6.781056,	6.878695,
+6.805677,	6.928289,	6.980214,	6.78691,	6.790808,	6.856873,	6.777692,	6.950592,
+6.803626,	6.9844,	6.839375,	6.826484,	6.76942,	6.69844,	6.912014,	6.915898,
+7.081279,	6.622697,	6.853801,	6.787298,	6.979978,	7.004093,	7.030137,	6.883308,
+6.854524,	7.071423,	7.112431,	6.884482,	6.729476,	7.188114,	6.748001,	7.090765,
+7.150293,	7.207313,	7.005457,	7.18906,	7.145763,	6.964352,	7.093477,	6.989013,
+7.158071,	7.086139,	6.964538,	7.080075,	7.061843,	6.970443,	7.264778,	6.976211,
+7.339103,	7.291082,	7.027941,	7.167093,	7.349407,	7.195115,	7.181914,	7.081075,
+7.301441,	7.123615,	7.121068,	7.292071,	7.19184,	7.37118,	7.224872,	7.315588,
+7.414535,	7.441094,	7.346309,	7.393757,	7.535755,	7.223019,	7.272198,	7.27755,
+7.365127,	7.427297,	7.41554,	7.179191,	7.189945,	7.187732,	7.346324,	7.381629,
+7.47791,	7.319757,	7.372815,	7.394873,	7.342542,	7.272067,	7.427948,	7.523324,
+7.422601,	7.513397,	7.421936,	7.485254,	7.414145,	7.585809,	7.623012,	7.564804,
+7.545233,	7.304622,	7.607815,	7.493756,	7.589345,	7.32446,	7.408897,	7.328623,
+7.436392,	7.394653,	7.48846,	7.357102,	7.540088,	7.748884,	7.571467,	7.506745,
+7.675459,	7.723804,	7.626678,	7.639725,	7.60592,	7.671016,	7.481725,	7.607584)
+
+# Generate the first difference of z
+dz <- diff(z)
+  
+# Plot dz
+ts.plot(dz)
+
+# View the length of z and dz, respectively
+length(z)
+length(dz)
+```
+##Removing seasonal trends with seasonal differencing
+
+###The function diff(..., lag = s) will calculate the lag s difference or length s seasonal change series. For monthly or quarterly data, an appropriate value of s would be 12 or 4, respectively.
+
+```{r}
+x =c(-4.198033,	9.569009,	5.175143,	-9.691646,	-3.215294,	10.843669,
+6.452159,	-10.833559,	-2.235351,	10.119833,	6.579646,	-8.656565,
+-2.515001,	9.837434,	7.386194,	-8.243504,	-4.264033,	8.898861,
+8.544336,	-8.066913,	-4.023025,	9.822679,	7.772852,	-6.587777,
+-3.459171,	10.613851,	7.37445,	-5.798715,	-1.204711,	11.429236,
+7.570047,	-4.968384,	-2.003787,	11.941348,	9.406672,	-4.396585,
+-1.555579,	12.599877,	8.502916,	-3.728968,	-2.827,	13.375981,
+8.128941,	-3.149249,	-2.799473,	13.71057,	6.755217,	-3.779744,
+-3.768274,	13.625336,	6.537931,	-3.249098,	-5.024191,	13.355373,
+6.931161,	-3.527354,	-5.197329,	11.579791,	7.162449,	-1.894607,
+-5.777797,	12.482695,	6.208088,	-3.434038,	-7.080721,	11.413656,
+6.74199,	-3.532376,	-8.393542,	12.507261,	6.473175,	-3.745246,
+-9.426209,	12.380817,	8.048243,	-2.831528,	-7.301893,	12.765838,
+8.223699,	-4.448131,	-6.963558,	12.034005,	7.574925,	-5.402218,
+-6.568198,	10.896482,	7.276571,	-4.037873,	-6.723013,	12.180815,
+8.285162,	-4.159342,	-6.36067,	12.753018,	8.665912,	-5.440538,
+-4.874932,	12.600197,	8.162589,	-6.539572)
+
+# Generate a diff of x with lag = 4. Save this to dx
+dx <- diff(x, lag=4)
+  
+# Plot dx
+ts.plot(dx)  
+
+# View the length of x and dx, respectively 
+length(x)
+length(dx)
+
+```
+##Simulate the white noise model
+
+The white noise (WN) model is a basic time series model. It is also a basis for the more elaborate models we will consider. We will focus on the simplest form of WN, independent and identically distributed data.
+
+The arima.sim() function can be used to simulate data from a variety of time series models. ARIMA is an abbreviation for the autoregressive integrated moving average class of models we will consider throughout this course.
+
+An ARIMA(p, d, q) model has three parts, the autoregressive order p, the order of integration (or differencing) d, and the moving average order q. We will detail each of these parts soon, but for now we note that the ARIMA(0, 0, 0) model, i.e., with all of these components zero, is simply the WN model.
+
+In this exercise, you will practice simulating a basic WN model.
+
+Instructions
+Use arima.sim() to simulate from the WN model with list(order = c(0, 0, 0)). Set the n argument equal to 100 to produce 100 observations. Save this data as white_noise.
+Plot your white_noise object using ts.plot().
+Replicate your original call to arima.sim() but this time set the mean argument to 100 and the sd argument to 10. Save this data as white_noise_2.
+Plot your white_noise_2 object with another call to ts.plot().
+```{r}
+# Simulate a WN model with list(order = c(0, 0, 0))
+white_noise <- arima.sim(model = list(order = c(0, 0, 0)), n = 100)
+
+# Plot your white_noise data
+ts.plot(white_noise)
+
+# Simulate from the WN model with: mean = 100, sd = 10
+white_noise_2 <- arima.sim(model = list(order = c(0, 0, 0)), n = 100, mean = 100, sd = 10)
+
+# Plot your white_noise_2 data
+ts.plot(white_noise_2)
+```
+##Estimate the white noise model
+
+For a given time series y we can fit the white noise (WN) model using the arima(..., order = c(0, 0, 0)) function. Recall that the WN model is an ARIMA(0,0,0) model. Applying the arima() function returns information or output about the estimated model. For the WN model this includes the estimated mean, labeled intercept, and the estimated variance, labeled sigma^2.
+
+In this exercise, you'll explore the qualities of the WN model. What is the estimated mean? Compare this with the sample mean using the mean() function. What is the estimated variance? Compare this with the sample variance using the var() function.
+
+The time series y has already been loaded, and is shown in the adjoining figure.
+
+Instructions
+Use arima() to estimate the WN model for y. Be sure to include the order = c(0, 0, 0) argument after specifying your data.
+Calculate the mean and variance of y using mean() and var(), respectively. Compare the results with the output of your arima() command.
+```{r}
+# Fit the WN model to y using the arima command
+arima(y,order = c(0, 0, 0))
+
+# Calculate the sample mean and sample variance of y
+mean(y)
+var(y)
+```
+Simulate the random walk model
+100xp
+The random walk (RW) model is also a basic time series model. It is the cumulative sum (or integration) of a mean zero white noise (WN) series, such that the first difference series of a RW is a WN series. Note for reference that the RW model is an ARIMA(0, 1, 0) model, in which the middle entry of 1 indicates that the model's order of integration is 1.
+
+The arima.sim() function can be used to simulate data from the RW by including the model = list(order = c(0, 1, 0)) argument. We also need to specify a series length n. Finally, you can specify a sd for the series (increments), where the default value is 1.
+
+Instructions
+Use arima.sim() to generate a RW model. Set the model argument equal to list(order = c(0, 1, 0)) to generate a RW-type model and set n equal to 100 to produce 100 observations. Save this to random_walk.
+Use ts.plot() to plot your random_walk data.
+Use diff() to calculate the first difference of your random_walk data. Save this as random_walk_diff.
+Use another call to ts.plot() to plot random_walk_diff.
+```{r}
+# Generate a RW model using arima.sim
+random_walk <- arima.sim(model = list(order = c(0, 1, 0)), n = 100)
+
+# Plot random_walk
+ts.plot(random_walk)
+
+# Calculate the first difference series
+random_walk_diff <- diff(random_walk)
+
+# Plot random_walk_diff
+ts.plot(random_walk_diff)
+```
+

@@ -1,0 +1,498 @@
+---
+title: "Introduction to Machine Learning"
+output: html_notebook
+author: Jeff Gross
+---
+```{r}
+#Packages
+install.packages("rpart", repos="http://lib.stat.cmu.edu/R/CRAN/")
+library(rpart)
+install.packages("readr", repos="http://lib.stat.cmu.edu/R/CRAN/")
+library(readr)
+```
+
+Acquainting yourself with the data
+70xp
+As a first step, you want to find out some properties of the dataset with which you'll be working. More specifically, you want to know more about the dataset's number of observations and variables.
+
+In this exercise, you'll explore the iris dataset. If you want to learn more about it, you can click on it or type ?iris in the console.
+
+Your job is to extract the number of observations and variables from iris. This dataset is readily available in R (in the datasets package that's loaded by default).
+
+Instructions
+Use the two ways presented in the video to find out the number of observations and variables of the iris data set: str() and dim(). Can you interpret the results?
+Call head() and tail() on iris to reveal the first and last observations in the iris dataset.
+Finally, call the summary() function to generate a summary of the dataset. What does the printout tell you?
+Show Answer (-70xp)
+Hint
+The str() function gives you an overview of the different variables of the data.
+The dim() function tells you the number of observations and variables respectively.
+The summary() function returns several measures for each variable. Such as the maximum observed value, the mean and many more!
+
+
+```{r}
+# iris is available from the datasets package
+
+# Reveal number of observations and variables in two different ways
+str(iris)
+dim(iris)
+
+# Show first and last observations in the iris data set
+head(iris)
+tail(iris)
+
+# Summarize the iris data set
+summary(iris)
+```
+
+What is, what isn't?
+35xp
+Part of excelling at machine learning is knowing when you're dealing with a machine learning problem in the first place. Machine learning is more than simply computing averages or performing some data manipulation. It actually involves making predictions about observations based on previous information.
+
+Which of the following statements uses a machine learning model?
+
+(1) Determine whether an incoming email is spam or not. (2) Obtain the name of last year's Giro d'Italia champion. (3) Automatically tagging your new Facebook photos. (4) Select the student with the highest grade on a statistics course.
+
+Possible Answers
+(1) and (2)
+(3) and (4)
+(1) and (3) <- Answer
+(2) and (4)
+Hint
+Remember that machine learning requires predicting or estimating some variable from existing observations.
+
+What is, what isn't? (2)
+35xp
+Not sure whether you got the difference between basic data manipulation and machine learning? Have a look at the statements below and identify the one which is not a machine learning problem.
+
+Possible Answers
+Given a viewer's shopping habits, recommend a product to purchase the next time she visits your website.
+Given the symptoms of a patient, identify her illness.
+Predict the USD/EUR exchange rate for February 2016.
+Compute the mean wage of 10 employees for your company. <- Answer
+Hint
+Calculating an average is a form of basic data manipulation.
+
+Basic prediction model
+70xp
+Let's get down to a bit of coding! Your task is to examine this course's first prediction model. You'll be working with the Wage dataset. It contains the wage and some general information for workers in the mid-Atlantic region of the US.
+
+As we briefly discussed in the video, there could be a relationship between a worker's age and his wage. Older workers tend to have more experience on average than their younger counterparts, hence you could expect an increasing trend in wage as workers age. So we built a linear regression model for you, using lm(): lm_wage. This model predicts the wage of a worker based only on the worker's age.
+
+With this linear model lm_wage, which is built with data that contain information on workers' age and their corresponding wage, you can predict the wage of a worker given the age of that worker. For example, suppose you want to predict the wage of a 60 year old worker. You can use the predict() function for this. This generic function takes a model as the first argument. The second argument should be some unseen observations as a data frame. predict() is then able to predict outcomes for these observations.
+
+Note: At this point, the workings of lm() are not important, you'll get a more comprehensive overview of regression in chapter 4.
+
+Instructions
+Take a look at the code that builds lm_wage, which models the wage by the age variable.
+See how the data frame unseen is created with a single column, age, containing a single value, 60.
+Predict the average wage at age 60 using predict(): you have to pass the arguments lm_wage and unseen. Print the result of your function call to the console (don't assign it to a variable). Can you interpret the result?
+Show Answer (-70xp)
+Hint
+The lm() receives a formula such as y ~ x as an argument. Here, y is the variable that you try to model using the x variable. More theoretically, y is the response variable and x is the predictor variable.
+The predict() function requires a model object, such as a linear model, as the first argument. The second argument should be a dataset to which you'd like to apply your model.
+```{r}
+install.packages("readr")
+library(readr)
+
+Wage <- read_csv("~/R Scripts/Wage.csv")
+
+# The Wage dataset is available
+
+# Build Linear Model: lm_wage (coded already)
+lm_wage <- lm(wage ~ age, data = Wage)
+
+# Define data.frame: unseen (coded already)
+unseen <- data.frame(age = 60)
+
+# Predict the wage for a 60-year old worker
+predict(lm_wage, unseen)
+```
+Classification: Filtering spam
+70xp
+Filtering spam from relevant emails is a typical machine learning task. Information such as word frequency, character frequency and the amount of capital letters can indicate whether an email is spam or not.
+
+In the following exercise you'll work with the dataset emails, which is loaded in your workspace (Source: UCI Machine Learning Repository). Here, several emails have been labeled by humans as spam (1) or not spam (0) and the results are found in the column spam. The considered feature in emails to predict whether it was spam or not is avg_capital_seq. It is the average amount of sequential capital letters found in each email.
+
+In the code, you'll find a crude spam filter we built for you, spam_classifier() that uses avg_capital_seq to predict whether an email is spam or not. In the function definition, it's important to realize that x refers to avg_capital_seq. So where the avg_capital_seq is greater than 4, spam_classifier() predicts the email is spam (1), if avg_capital_seq is inclusively between 3 and 4, it predicts not spam (0), and so on. This classifier's methodology of predicting whether an email is spam or not seems pretty random, but let's see how it does anyways!
+
+Your job is to inspect the emails dataset, apply spam_classifier to it, and compare the predicted labels with the true labels. If you want to play some more with the emails dataset, you can download it here. And if you want to learn more about writing functions, consider taking the Writing Functions in R course taught by Hadley and Charlotte Wickham.
+
+Instructions
+Check the dimensions of this dataset. Use dim().
+Inspect the definition of spam_classifier(). It's a simple set of statements that decide between spam and no spam based on a single input vector.
+Pass the avg_capital_seq column of emails to spam_classifier() to determine which emails are spam and which aren't. Assign the resulting outcomes to spam_pred.
+Compare the vector with your predictions, spam_pred, to the true spam labels in emails$spam with the == operator. Simply print out the result. This can be done in one line of code! How many of the emails were correctly classified?
+Show Answer (-70xp)
+Hint
+Use spam_classifier(emails$avg_capital_seq) to make predictions using the classifier. Assign the result of this call to spam_pred.
+The logical operator == tests for each pair of elements whether they are equal, TRUE means the pair is equal. It returns a logical vector.
+```{r}
+emails <- read_csv("~/R Scripts/emails_small.csv")
+
+
+# Show the dimensions of emails
+dim(emails)
+
+# Inspect definition of spam_classifier()
+spam_classifier <- function(x){
+  prediction <- rep(NA,length(x))
+  prediction[x > 4] <- 1
+  prediction[x >= 3 & x <= 4] <- 0
+  prediction[x >= 2.2 & x < 3] <- 1
+  prediction[x >= 1.4 & x < 2.2] <- 0
+  prediction[x > 1.25 & x < 1.4] <- 1
+  prediction[x <= 1.25] <- 0
+  return(prediction)
+}
+
+# Apply the classifier to the avg_capital_seq column: spam_pred
+spam_pred <- spam_classifier(emails$avg_capital_seq)
+
+# Compare spam_pred to emails$spam. Use ==
+spam_pred == emails$spam
+```
+Good job! It looks like spam_classifier() correctly filtered the spam 13 out of 13 times! Sadly, the classifier we gave you was made to perfectly filter all 13 examples. If you were to use it on a new set of emails, the results would be far less satisfying. In chapter 3, you'll learn more about techniques to classify the data, but without cheating!
+
+
+##Regression: LinkedIn views for the next 3 days
+
+It's time for you to make another prediction with regression! More precisely, you'll analyze the number of views of your LinkedIn profile. With your growing network and your data science skills improving daily, you wonder if you can predict how often your profile will be visited in the future based on the number of days it's been since you created your LinkedIn account.
+
+The instructions will help you predict the number of profile views for the next 3 days, based on the views for the past 3 weeks. The linkedin vector, which contains this information, is already available in your workspace.
+
+Instructions
+Create a vector days with the numbers from 1 to 21, which represent the previous 3 weeks of your linkedin views. You can use the seq() function, or simply :.
+Fit a linear model that explains the LinkedIn views. Use the lm() function such that linkedin ( number of views) is a function of days (number of days since you made your account). As an example, lm(y ~ x) builds a linear model such that y is a function of x, or more colloquially, y is based on x. Assign the resulting linear model to linkedin_lm.
+Using this linear model, predict the number of views for the next three days (days 22, 23 and 24). Use predict() and the predefined future_days data frame. Assign the result to linkedin_pred.
+See how the remaining code plots both the historical data and the predictions. Try to interpret the result.
+Show Answer (-70xp)
+Hint
+To build a vector with the integers 1 to 21, you can use 1:21. You can also use seq(length(linkedin)).
+Remember that predict() in this case receives a linear model and the data.frame of the future days, which is given.
+```{r}
+linkedin = c(5,	7,	4,	9,	11,	10,	14,	17,	13,	11,	18,	17,	21,	21,	24,	23,	28,	35,	21,	27,	23)
+
+# Create the days vector
+days <- seq(1,21)
+
+# Fit a linear model called on the linkedin views per day: linkedin_lm
+linkedin_lm <- lm(linkedin ~ days)
+
+# Predict the number of views for the next three days: linkedin_pred
+future_days <- data.frame(days = 22:24)
+linkedin_pred <- predict(linkedin_lm,future_days)
+
+# Plot historical data and predictions
+plot(linkedin ~ days, xlim = c(1, 24))
+points(22:24, linkedin_pred, col = "green")
+```
+Clustering: Separating the iris species
+70xp
+Last but not least, there's clustering. This technique tries to group your objects. It does this without any prior knowledge of what these groups could or should look like. For clustering, the concepts of prior knowledge and unseen observations are less meaningful than for classification and regression.
+
+In this exercise, you'll group irises in 3 distinct clusters, based on several flower characteristics in the iris dataset. It has already been chopped up in a data frame my_iris and a vector species, as shown in the sample code on the right.
+
+The clustering itself will be done with the kmeans() function. How the algorithm actually works, will be explained in the last chapter. For now, just try it out to gain some intuition!
+
+Note: In problems that have a random aspect (like this problem with kmeans()), the set.seed() function will be used to enforce reproducibility. If you fix the seed, the random numbers that are generated (e.g. in kmeans()) are always the same.
+
+Instructions
+Use the kmeans() function. The first argument is my_iris; the second argument is 3, as you want to find three clusters in my_iris. Assign the result to a new variable, kmeans_iris.
+The actual species of the observations is stored in species. Use table() to compare it to the groups that the clustering came up with. These groups can be found in the cluster attribute of kmeans_iris.
+Inspect the code that generates a plot of Petal.Length against Petal.Width and colors by cluster.
+Show Answer (-70xp)
+Hint
+For the help file, click on kmeans().
+For the second instruction, use table(species, kmeans_iris$cluster). Have a look at the documentation of table() if you're not familiar with this function.
+```{r}
+# Set random seed. Don't remove this line.
+set.seed(1)
+
+# Chop up iris in my_iris and species
+my_iris <- iris[-5]
+species <- iris$Species
+
+# Perform k-means clustering on my_iris: kmeans_iris
+kmeans_iris <- kmeans(my_iris, 3)
+
+# Compare the actual Species to the clustering using table()
+table(species, kmeans_iris$cluster)
+
+# Plot Petal.Width against Petal.Length, coloring by cluster
+plot(Petal.Length ~ Petal.Width, data = my_iris, col = kmeans_iris$cluster)
+```
+Getting practical with supervised learning
+70xp
+Previously, you used kmeans() to perform clustering on the iris dataset. Remember that you created your own copy of the dataset, and dropped the Species attribute? That's right, you removed the labels of the observations.
+
+In this exercise, you will use the same dataset. But instead of dropping the Species labels, you will use them do some supervised learning using recursive partitioning! Don't worry if you don't know what that is yet. Recursive partitioning (a.k.a. decision trees) will be explained in Chapter 3.
+
+Instructions
+Take a look at the iris dataset, using str() and summary().
+The code that builds a supervised learning model with the rpart() function from the rpart package is already provided for you. This model trains a decision tree on the iris dataset.
+Use the predict() function with the tree model as the first argument. The second argument should be a data frame containing observations of which you want to predict the label. In this case, you can use the predefined unseen data frame. The third argument should be type = "class". Simply print out the result of this prediction step.
+Show Answer (-70xp)
+Hint
+The predict() function can be used as follows: predict(tree, unseen, type = "class").
+```{r}
+# Set random seed. Don't remove this line.
+set.seed(1)
+
+# Take a look at the iris dataset
+str(iris)
+summary(iris)
+
+# A decision tree model has been built for you
+tree <- rpart(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width,
+              data = iris, method = "class")
+
+# A dataframe containing unseen observations
+unseen <- data.frame(Sepal.Length = c(5.3, 7.2),
+                     Sepal.Width = c(2.9, 3.9),
+                     Petal.Length = c(1.7, 5.4),
+                     Petal.Width = c(0.8, 2.3))
+
+# Predict the label of the unseen observations. Print out the result.
+predict(tree, unseen, type="class")
+```
+How to do unsupervised learning (1)
+100xp
+In this exercise, you will group cars based on their horsepower and their weight. You can find the types of car and corresponding attributes in the cars data frame, which has been derived from the mtcars dataset. It's available in your workspace.
+
+To cluster the different observations, you will once again use kmeans().
+
+In short, your job is to cluster the cars in 2 groups, but don't forget to explore the dataset first!
+
+Instructions
+Explore the dataset using str() and summary().
+Use kmeans() with two arguments to group the cars into two clusters based on the contents of the cars data frame. Assign the result to km_cars.
+Print out the cluster element of km_cars; it shows which cars belong to which clusters.
+Take Hint (-30xp)
+Incorrect submission
+Be sure to define km_cars using kmeans() and two arguments.
+```{r}
+type <- c('Mazda RX4',	'Mazda RX4 Wag',	'Datsun 710',	'Hornet 4 Drive',	'Hornet Sportabout',	'Valiant',	'Duster 360',	'Merc 240D',	'Merc 230',	'Merc 280',	'Merc 280C',	'Merc 450SE',	'Merc 450SL',	'Merc 450SLC',	'Cadillac Fleetwood',	'Lincoln Continental',	'Chrysler Imperial',	'Fiat 128',	'Honda Civic',	'Toyota Corolla',	'Toyota Corona',	'Dodge Challenger',	'AMC Javelin',	'Camaro Z28',	'Pontiac Firebird',	'Fiat X1-9',	'Porsche 914-2',	'Lotus Europa',	'Ford Pantera L',	'Ferrari Dino',	'Maserati Bora',	'Volvo 142E');
+wt <- c(2.62,	2.875,	2.32,	3.215,	3.44,	3.46,	3.57,	3.19,	3.15,	3.44,	3.44,	4.07,	3.73,	3.78,	5.25,	5.424,	5.345,	2.2,	1.615,	1.835,	2.465,	3.52,	3.435,	3.84,	3.845,	1.935,	2.14,	1.513,	3.17,	2.77,	3.57,	2.78); 
+hp <- c(110,	110,	93,	110,	175,	105,	245,	62,	95,	123,	123,	180,	180,	180,	205,	215,	230,	66,	52,	65,	97,	150,	150,	245,	175,	66,	91,	113,	264,	175,	335,	109);
+
+# Create the data frame:
+cars_1  <-data.frame(type,wt,hp)
+cars_1$type <- as.character(cars_1$type)
+View(cars_1)
+
+cars_1 <- read_csv("~/R Scripts/cars_1.csv")
+str(cars_1)
+cars_1$wt <- as.numeric(cars_1$wt)
+cars_1$hp <- as.numeric(cars_1$hp)
+
+# Set random seed. Don't remove this line.
+set.seed(1)
+
+# Explore the cars dataset
+str(cars_1)
+summary(cars_1)
+
+# Group the dataset into two clusters: km_cars
+km_cars <- kmeans(cars_1, center=2)
+is.na(cars_1)
+
+# Print out the contents of each cluster
+print(km_cars$cluster)
+```
+How to do unsupervised learning (2)
+70xp
+In the previous exercise, you grouped the cars based on their horsepower and their weight. Now let's have a look at the outcome!
+
+An important part in machine learning is understanding your results. In the case of clustering, visualization is key to interpretation! One way to achieve this is by plotting the features of the cars and coloring the points based on their corresponding cluster.
+
+In this exercise you'll summarize your results in a comprehensive figure. The dataset cars is already available in your workspace; the code to perform the clustering is already available.
+
+Instructions
+Finish the plot() command by coloring the cars based on their cluster. Do this by setting the col argument to the cluster partitioning vector: km_cars$cluster.
+Print out the clusters' centroids, which are kind of like the centers of each cluster. They can be found in the centers element of km_cars.
+Replace the ___ in points() with the clusters' centroids. This will add the centroids to your earlier plot. To learn about the other parameters that have been defined for you, have a look at the graphical parameters documentation.
+Show Answer (-70xp)
+Hint
+If given a vector with a length equal to the number of plotted observations, the col argument will color each observation based on the corresponding element in the given vector. In this case, the coloring vector km_cars$cluster only contains 1's and 2's, which correspond to the colors "black" and "red" respectively. Hence, the objects in cluster one will be colored black, while those in cluster two will be colored red.
+The graphical parameter pch sets the points' symbol, in this case, a filled square.
+The graphical parameter bg sets the fill color of the points. Only applicable for pch symbols 21 through 25.
+The graphical parameter cex sets the size of the points' symbol. In this case, it enlarges the symbol by 100%.
+```{r}
+
+
+# Set random seed. Don't remove this line
+set.seed(1)
+
+# Group the dataset into two clusters: km_cars
+km_cars <- kmeans(cars, 2)
+
+# Add code: color the points in the plot based on the clusters
+plot(cars, col=km_cars$cluster)
+
+# Print out the cluster centroids
+print(km_cars$centers)
+
+# Replace the ___ part: add the centroids to the plot
+points(km_cars$centers, pch = 22, bg = c(1, 2), cex = 2)
+```
+Tell the difference
+50xp
+Wow, you've come a long way in this chapter. You've now acquainted yourself with 3 machine learning techniques. Let's see if you understand the difference between these techniques. Which ones are supervised, and which ones aren't?
+
+From the following list, select the supervised learning problems:
+
+(1) Identify a face on a list of Facebook photos. You can train your system on tagged Facebook pictures. (2) Given some features, predict whether a fruit has gone bad or not. Several supermarkets provided you with their previous observations and results. (3) Group DataCamp students into three groups. Students within the same group should be similar, while those in different groups must be dissimilar.
+
+Possible Answers
+only (1) and (3) are supervised.
+(1), (2) and (3) are supervised.
+only (1) and (2) are supervised.<- answer
+only (3) is supervised.
+
+The Confusion Matrix
+70xp
+Have you ever wondered if you would have survived the Titanic disaster in 1912? Our friends from Kaggle have some historical data on this event. The titanic dataset is already available in your workspace.
+
+In this exercise, a decision tree is learned on this dataset. The tree aims to predict whether a person would have survived the accident based on the variables Age, Sex and Pclass (travel class). The decision the tree makes can be deemed correct or incorrect if we know what the person's true outcome was. That is, if it's a supervised learning problem.
+
+Since the true fate of the passengers, Survived, is also provided in titanic, you can compare it to the prediction made by the tree. As you've seen in the video, the results can be summarized in a confusion matrix. In R, you can use the table() function for this.
+
+In this exercise, you will only focus on assessing the performance of the decision tree. In chapter 3, you will learn how to actually build a decision tree yourself.
+
+Note: As in the previous chapter, there are functions that have a random aspect. The set.seed() function is used to enforce reproducibility. Don't worry about it, just don't remove it!
+
+Instructions
+Have a look at the structure of titanic. Can you infer the number of observations and variables?
+Inspect the code that build the decision tree, tree. Don't worry if you do not fully understand it yet.
+Use tree to predict() who survived in the titanic dataset. Use tree as the first argument and titanic as the second argument. Make sure to set the type parameter to "class". Assign the result to pred.
+Build the confusion matrix with the table() function. This function builds a contingency table. The first argument corresponds to the rows in the matrix and should be the Survived column of titanic: the true labels from the data. The second argument, corresponding to the columns, should be pred: the tree's predicted labels.
+Show Answer (-70xp)
+Hint
+If you're stuck at the prediction step, remember that the first argument of predict() must be the model that you want to use: tree. You can consult the documentation by clicking on predict().
+The table() method takes two vectors: one with the actual, true values and one with the predicted values.
+```{r}
+titanic <- read_csv("~/R Scripts/titanic.csv")
+titanic$Sex <- as.factor(titanic$Sex)
+titanic$Survived <- as.factor(titanic$Survived)
+
+# Set random seed. Don't remove this line
+set.seed(1)
+
+# Have a look at the structure of titanic
+str(titanic)
+
+# A decision tree classification model is built on the data
+tree <- rpart(Survived ~ ., data = titanic, method = "class")
+
+# Use the predict() method to make predictions, assign to pred
+pred <- predict(tree, titanic, type="class")
+
+# Use the table() method to make the confusion matrix
+table(titanic$Survived, pred)
+```
+Deriving ratios from the Confusion Matrix
+70xp
+The confusion matrix from the last exercise provides you with the raw performance of the decision tree:
+
+The survivors correctly predicted to have survived: true positives (TP)
+The deceased who were wrongly predicted to have survived: false positives (FP)
+The survivors who were wrongly predicted to have perished: false negatives (FN)
+The deceased who were correctly predicted to have perished: true negatives (TN)
+pnPTPFPNFNTN
+PNpTPFNnFPTN
+The confusion matrix is called conf, try this in the console for its specific values:
+
+> conf
+
+      1   0
+  1 212  78
+  0  53 371
+In the video, you saw that these values can be used to estimate comprehensive ratios to asses the performance of a classification algorithm. An example is the accuracy, which in this case represents the percentage of correctly predicted fates of the passengers.
+
+Accuracy=TP+TNTP+FN+FP+TN.
+Accuracy=TP+TNTP+FN+FP+TN.
+Apart from accuracy, precision and recall are also key metrics to assess the results of a classification algorithm:
+
+Precision=TPTP+FP
+Precision=TPTP+FP
+Recall=TPTP+FN
+Recall=TPTP+FN
+The confusion matrix you've calculated in the previous exercise is available in your workspace as conf.
+
+Instructions
+Assign the correct values of the confusion matrix to FP and TN. Fill in the ___.
+Calculate the accuracy as acc and print it out.
+Finally, also calculate the precision and the recall, as prec and rec. Print out both of them.
+Show Answer (-70xp)
+Hint
+Take a good look at the exercise description and the loaded matrix to find correct values for TP, FN, FP and TN. To select the element on the first row and second column, for example, you'll want to use conf[1,2].
+```{r}
+data <- read_csv("~/R Scripts/conf.csv")
+
+# The confusion matrix is available in your workspace as conf
+
+# Assign TP, FN, FP and TN using conf
+TP <- conf[1, 2] # this will be 212
+FN <- conf[1, 3] # this will be 78
+FP <- conf[2, 2] # fill in
+TN <- conf[2, 3] # fill in
+
+# Calculate and print the accuracy: acc
+print(acc <- TP+TN/(TP+FN+FP+TN))
+
+# Calculate and print out the precision: prec
+print(prec <- TP/(TP+FP))
+
+# Calculate and print out the recall: rec
+print(rec <- TP/(TP+FN))
+
+```
+The quality of a regression
+70xp
+Imagine this: you're working at NASA and your team measured the sound pressure produced by an airplane's wing under different settings. These settings are the frequency of the wind, the angle of the wing, and several more. The results of this experiment are listed in the air dataset (Source: UCIMLR).
+
+Your team wants to build a model that's able to predict the sound pressure based on these settings, instead of having to do those tedious experiments every time.
+
+A colleague has prepared a multivariable linear regression model, fit. It takes as input the predictors: wind frequency (freq), wing's angle (angle), and chord's length (ch_length). The response is the sound pressure (dec). All these variables can be found in air.
+
+Now, your job is to assess the quality of your colleague's model by calculating the RMSE:
+
+RMSE=1N???i=1N(yi???y^i)2???????????????????????????????????????????????????
+RMSE=1N???i=1N(yi???y^i)2
+For example: if truth$colwas a column with true values of a variable and pred is the prediction of that variable, the formula could be calculated in R as follows:
+
+sqrt((1/nrow(truth)) * sum( (truth$col - pred) ^ 2))
+Instructions
+Take a look at the structure of air. What does it tell you?
+Inspect your colleague's code that builds a multivariable linear regression model based on air. Not familiar with multiple linear regression? No problem! It will become clear in chapter 4. For now, you'll stick to assessing the model's performance.
+Use the predict() function to make predictions for the observations in the air dataset. Simply pass fit to predict(); R will know what to do. Assign the result to pred.
+Calculate the RMSE using the formula above. yiyi corresponds to the actual sound pressure of observation ii, which is in air$dec. y^iy^i corresponds to the predicted value of observation ii, which is in pred. Assign the resulting RMSE to rmse.
+Print out rmse.
+Show Answer (-70xp)
+Hint
+You can just use predict() with the fitted model as follows: predict(fit). Assign the predictions to pred.
+The formula for RMSE is in the instructions. The R statement shouldn't be too hard if you took the intermediate R class! You can use a combination of sqrt(), sum() and nrow(), like in the example. For our problem, instead of truth and truth$col you should use air and air$dec.
+```{r}
+air <- read_csv("~/R Scripts/air.csv")
+
+# Take a look at the structure of air
+str(air)
+
+# Inspect your colleague's code to build the model
+fit <- lm(dec ~ freq + angle + ch_length, data = air)
+
+# Use the model to predict for all values: pred
+pred <- predict(fit)
+
+# Use air$dec and pred to calculate the RMSE 
+rmse <- sqrt((1/nrow(air)) * sum( (air$dec - pred) ^ 2))
+
+# Print out rmse
+print(rmse)
+```
+
+
+
+
+

@@ -1,0 +1,1249 @@
+---
+title: "Spark using sparklyr"
+output: html_notebook
+author: Jeff Gross
+---
+
+#Load the dplyr and hflights package
+
+```{r}
+options(tibble.print_max = Inf)
+options(tibble.width = Inf)
+
+#install packages
+install.packages("dplyr")
+install.packages("data.table")
+install.packages("dbplyr")
+install.packages("RMySQL")
+install.packages("DBI")
+install.packages("readr")
+install.packages("purrr")
+install.packages("sparklyr")
+
+# Load packages
+library(readr)
+library(DBI)
+library(RMySQL)
+library(dbplyr)
+library(data.table)
+library(dplyr)
+library(purrr)
+library(sparklyr)
+```
+
+#The connect-work-disconnect pattern
+Load the sparklyr package with library().
+Connect to Spark by calling spark_connect(), with argument master = "local". Assign the result to spark_conn.
+Get the Spark version using spark_version(), with argument sc = spark_conn.
+Disconnect from Spark using spark_disconnect(), with argument sc = spark_conn.
+```{r}
+
+#spark_install()
+#Created default hadoop bin directory under: #C:\Users\Y\AppData\Local\rstudio\spark\Cache\spark-1.6.2-bin-hadoop2.6\tmp\hadoop
+
+# Load sparklyr
+library(sparklyr)
+
+# Connect to your Spark cluster
+spark_conn <- spark_connect(master="local")
+
+# Print the version of Spark
+spark_version(spark_conn)
+
+# Disconnect from Spark
+spark_disconnect(spark_conn)
+```
+#Copying data into Spark
+track_metadata, containing the song name, artist name, and other metadata for 1,000 tracks, has been pre-defined in your workspace.
+
+Use str() to explore the track_metadata dataset.
+Connect to your local Spark cluster, storing the connection in spark_conn.
+Copy track_metadata to the Spark cluster using copy_to() .
+See which data frames are available in Spark, using src_tbls().
+Disconnect from Spark.
+```{r}
+# Load dplyr
+library(dplyr)
+
+track_metadata <- read_csv("~/R Scripts/track_metadata_tbl.csv")
+track_metadata <- tbl_df(track_metadata)
+track_metadata_tbl <- as_tibble(track_metadata)
+
+class(track_metadata_tbl)
+
+# Explore track_metadata structure
+str(track_metadata)
+
+# Connect to your Spark cluster
+spark_conn <- spark_connect("local")
+
+# Copy track_metadata to Spark
+track_metadata_tbl <- copy_to(spark_conn,track_metadata)
+
+# List the data frames available in Spark
+src_tbls(spark_conn)
+
+# Disconnect from Spark
+spark_disconnect(spark_conn)
+```
+#Big data, tiny tibble
+Link to the "track_metadata" table using tbl(). Assign the result to track_metadata_tbl.
+See how big the dataset is, using dim() on track_metadata_tbl.
+See how small the tibble is, using object_size() on track_metadata_tbl.
+```{r}
+# Connect to your Spark cluster
+spark_conn <- spark_connect("local")
+
+# Link to the track_metadata table in Spark
+track_metadata_tbl <- tbl(spark_conn,"track_metadata")
+
+# See how big the dataset is
+dim(track_metadata_tbl)
+
+# See how small the tibble is
+object_size(track_metadata_tbl)
+
+# Disconnect from Spark
+spark_disconnect(spark_conn)
+```
+#Exploring the structure of tibbles
+Print the first 5 rows and all the columns of the track metadata.
+Examine the structure of the tibble using str().
+Examine the structure of the track metadata using glimpse().
+```{r}
+# Print 5 rows, all columns
+print(track_metadata_tbl,n=5,width=Inf)
+
+# Examine structure of tibble
+str(track_metadata_tbl)
+
+# Examine structure of data
+glimpse(track_metadata_tbl)
+
+
+
+```
+#Selecting columns
+
+a_tibble %>%
+  select(x, y, z)
+  
+a_tibble[, c("x", "y", "z")]
+
+Select the artist_name, release, title, and year using select().
+Try to do the same thing using square bracket indexing. Spoiler! This code throws an error, so it is wrapped in a call to tryCatch().
+```{r}
+# Connect to your Spark cluster
+spark_conn <- spark_connect("local")
+
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+# Manipulate the track metadata
+track_metadata_tbl %>%
+  # Select columns
+  select(artist_name,release,title,year)
+
+# Try to select columns using [ ]
+tryCatch({
+    # Selection code here
+    track_metadata_tbl[, c("artist_name", "release", "title", "year")]
+  },
+  error = print
+)
+
+# Disconnect from Spark
+spark_disconnect(spark_conn)
+```
+#Filtering rows
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+a_tibble %>%
+  filter(x > 0, y == z)
+  
+a_tibble %>%
+  filter(grepl("a regex", x))
+
+As in the previous exercise, select the artist_name, release, title, and year using select().
+Pipe the result of this to filter() to get the tracks from the 1960s.
+```{r}
+# track_metadata_tbl has been pre-defined
+glimpse(track_metadata_tbl)
+
+# Manipulate the track metadata
+track_metadata_tbl %>%
+  # Select columns
+  select(artist_name,release,title,year) %>%
+  # Filter rows
+  filter(year>= 1960, year<1970)
+```
+#Arranging rows
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+a_tibble %>%
+  arrange(x, desc(y))
+
+Select the artist_name, release, title, and year fields.
+Pipe the result of this to filter on tracks from the 1960s.
+Pipe the result of this to arrange() to order by artist_name, then descending year, then title.
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+# Manipulate the track metadata
+track_metadata_tbl %>%
+  # Select columns
+  select(artist_name,release,title,year) %>%
+  # Filter rows
+  filter(year>=1960,year<1970) %>%
+  # Arrange rows
+  arrange(artist_name,desc(year),title)
+```
+#Mutating columns
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+a_tibble %>%
+  mutate(
+    x = x + y,
+    z = log(x)  
+  )
+
+Select the title, and duration fields. Note that the durations are in seconds.
+Pipe the result of this to mutate() to create a new field, duration_minutes, that contains the track duration in minutes.
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+# Manipulate the track metadata
+track_metadata_tbl %>%
+  # Select columns
+  select(title,duration) %>%
+  # Mutate columns
+  mutate(duration_minutes=duration/60)
+```
+#Summarizing columns
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+a_tibble %>%
+  summarize(
+    mean_x       = mean(x),
+    sd_x_times_y = sd(x * y)
+  )
+
+Select the title, and duration fields.
+Pipe the result of this to create a new field, duration_minutes, that contains the track duration in minutes.
+Pipe the result of this to summarize() to calculate the mean duration in minutes, in a field named mean_duration_minutes.
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+# Manipulate the track metadata
+track_metadata_tbl %>%
+  # Select columns
+  select(title,duration) %>%
+  # Mutate columns
+  mutate(duration_minutes=duration/60) %>%
+  # Summarize columns
+  summarize(mean_duration_minutes = mean(duration_minutes))
+```
+#Mother's little helper (1)
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+Select all columns from track_metadata_tbl starting with "artist".
+Select all columns from track_metadata_tbl ending with "id".
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+track_metadata_tbl %>%
+  # Select columns starting with artist
+  select(starts_with("artist"))
+
+track_metadata_tbl %>%
+  # Select columns ending with id
+  select(ends_with("id"))
+```
+#Mother's little helper (2)
+contains()
+a: A letter means "match that letter".
+.: A dot means "match any character, including letters, numbers, punctuation, etc.".
+?: A question mark means "the previous character is optional".
+You can find columns that match a particular regex using the matches() select helper.
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+track_metadata_tbl %>%
+  # Select columns containing ti
+  select(contains("ti"))
+
+track_metadata_tbl %>%
+  # Select columns matching ti.?t
+  select(matches("ti.?t"))
+```
+#Selecting unique rows
+If you have a categorical variable stored in a factor, it is often useful to know what the individual categories are; you do this with the levels() function.
+
+a_tibble %>%
+  distinct(x, y, z)
+
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+track_metadata_tbl %>%
+  # Only return rows with distinct artist_name
+  distinct(artist_name)
+```
+Unique, distinct, and non-duplicated all mean the same thing.
+
+#Common people
+To use it, pass the unquoted names of the columns. For example, to find the counts of distinct combinations of columns x, y, and z, you would type the following.
+
+a_tibble %>%
+  count(x, y, z)
+
+ For example, to get the top 20 most common combinations of the x, y, and z columns, use the following.
+ 
+ a_tibble %>%
+  count(x, y, z, sort = TRUE) %>%
+  top_n(20)
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+Count the values in the artist_name column from track_metadata_tbl.
+Pass sort = TRUE to sort the rows by descending popularity.
+Restrict the results to the top 20 using top_n().
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+track_metadata_tbl %>%
+  # Count the artist_name values
+  count(artist_name, sort=TRUE) %>%
+  # Restrict to top 20
+  top_n(20)
+```
+#Collecting data back from Spark
+
+There are lots of reasons that you might want to move your data from Spark to R. You've already seen how some data is moved from Spark to R when you print it. You also need to collect your dataset if you want to plot it, or if you want to use a modeling technique that is not available in Spark.
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+Filter the rows of track_metadata_tbl where artist_familiarity is greater than 0.9, assigning the results to results.
+Print the class of results, noting that it is a tbl_lazy (used for remote data).
+Collect your results, assigning them to collected.
+Print the class of collected, noting that it is a tbl_df (used for local data).
+
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+results <- track_metadata_tbl %>%
+  # Filter where artist familiarity is greater than 0.9
+  filter(artist_familiarity > .9)
+
+# Examine the class of the results
+class(results)
+
+# Collect your results
+collected <- results %>%
+  collect()
+
+# Examine the class of the collected results
+class(collected)
+```
+Jolly good! copy_to() moves your data from R to Spark; collect() goes in the opposite direction.
+
+#Storing intermediate results
+You need to store the results of intermediate calculations, but you don't want to collect them because it is slow. The solution is to use compute() to compute the calculation, but store the results in a temporary data frame on Spark. 
+
+a_tibble %>%
+  # some calculations %>%
+  compute("intermediate_results")
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+Filter the rows of track_metadata_tbl where artist_familiarity is greater than 0.8.
+Compute the results using compute().
+Store the results in a Spark data frame named "familiar_artists".
+Assign the result to an R tibble named computed.
+See the available Spark datasets using src_tbls().
+Print the class() of computed. Notice that unlike collect(), compute() returns a remote tibble. The data is still stored in the Spark cluster.
+```{r}
+# Connect to your Spark cluster
+spark_conn <- spark_connect("local")
+
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+computed <- track_metadata_tbl %>%
+  # Filter where artist familiarity is greater than 0.8
+  filter(artist_familiarity > .8) %>%
+  # Compute the results
+  compute("familiar_artists")
+
+# See the available datasets
+src_tbls(spark_conn)
+
+# Examine the class of the computed results
+class(computed)
+
+# Disconnect from Spark
+spark_disconnect(spark_conn)
+
+```
+class(computed) is tbl_lazy. compute() lets you store intermediate results, without having to copy data to R.
+
+#Groups: great for music, great for data
+a_tibble %>%
+  group_by(grp1, grp2) %>%
+  summarize(mean_x = mean(x))
+
+Note that the columns passed to group_by() should typically be categorical variables. You could, however, use cut() to convert the heights into different categories, and calculate the mean weight for each category.
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+Group the contents of track_metadata by artist_name, then:
+Summarize the groupwise mean of duration as a new column, mean_duration.
+Assign the results to duration_by_artist.
+Find the artists with the shortest songs by arranging the rows in ascending order of mean_duration.
+Likewise, find those with the longest songs by arranging in descending order of mean_duration.
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+duration_by_artist <- track_metadata_tbl %>%
+  # Group by artist
+  group_by(artist_name) %>%
+  # Calc mean duration
+  summarize(mean_duration=mean(duration))
+
+duration_by_artist %>%
+  # Sort by ascending mean duration
+  arrange(mean_duration)
+
+  
+duration_by_artist %>%
+  # Sort by descending mean duration
+  arrange(desc(mean_duration))
+```
+That was quick! summarize() works with grouped tibbles, and as you'll see next, so does mutate().
+
+#Groups of mutants, Normalizatin
+
+a_tibble %>%
+  group_by(grp1, grp2) %>%
+  mutate(normalized_x = (x - mean(x)) / sd(x))
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+track_metadata_tbl %>%
+  # Group by artist
+  group_by(artist_name) %>%
+  # Calc time since first release
+  mutate(time_since_first_release=year-min(year)) %>%
+  # Arrange by descending time since first release
+  arrange(desc(time_since_first_release))
+```
+Professor X would be proud! mutate() and summarize() are commonly paired with group_by().
+
+#Advanced Selection II: The SQL
+SQL queries are written as strings, and passed to dbGetQuery() from the DBI package. The pattern is as follows.
+
+query <- "SELECT col1, col2 FROM some_data WHERE some_condition"
+a_data.frame <- dbGetQuery(spark_conn, query)
+
+Note that unlike the dplyr code you've written, dbGetQuery() will always execute the query and return the results to R immediately. If you want to delay returning the data, you can use dbSendQuery() to execute the query, then dbFetch() to return the results. That's more advanced usage, not covered here. Also note that DBI functions return data.frames rather than tibbles, since DBI is a lower-level package.
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+# Write SQL query
+query <- "SELECT * FROM track_metadata WHERE year < 1935 AND duration > 300"
+
+# Run the query
+(results <- dbGetQuery(spark_conn, query))
+```
+Sterling SQL querying! Writing SQL is more effort than writing dplyr code, but is more portable.
+
+#Left joins
+
+left_join(a_tibble, another_tibble, by = c("id_col1", "id_col2"))
+
+A Spark connection has been created for you as spark_conn. Tibbles attached to the track metadata and artist terms stored in Spark have been pre-defined as track_metadata_tbl and artist_terms_tbl respectively.
+
+Use a left join to join the artist terms to the track metadata by the artist_id column.
+The table to be joined to, track_metadata_tbl, comes first.
+The table that joins the first, artist_terms_tbl, comes next.
+Assign the result to joined.
+Use dim() to determine how many rows and columns there are in the joined table.
+```{r}
+# track_metadata_tbl and artist_terms_tbl have been pre-defined
+track_metadata_tbl
+artist_terms_tbl
+
+# Left join artist terms to track metadata by artist_id
+joined <- left_join(track_metadata_tbl, artist_terms_tbl, by = "artist_id")
+
+# How many rows and columns are in the joined table?
+dim(joined)
+```
+Elementary coding, my dear Watson! The left join finds all the associated terms for each artist. Now let's look at which artists had no associated terms.
+
+#Anti joins
+An anti join returns the rows of the first table where it cannot find a match in the second table. 
+
+Anti joins are a type of filtering join, since they return the contents of the first table, but with their rows filtered depending upon the match conditions.
+
+anti_join(a_tibble, another_tibble, by = c("id_col1", "id_col2"))
+
+A Spark connection has been created for you as spark_conn. Tibbles attached to the track metadata and artist terms stored in Spark have been pre-defined as track_metadata_tbl and artist_terms_tbl respectively.
+
+Use an anti join to join the artist terms to the track metadata by the artist_id column. Assign the result to joined.
+Use dim() to determine how many rows and columns there are in the joined table.
+```{r}
+# track_metadata_tbl and artist_terms_tbl have been pre-defined
+track_metadata_tbl
+artist_terms_tbl
+
+# Anti join artist terms to track metadata by artist_id
+joined <- anti_join(track_metadata_tbl,artist_terms_tbl,by="artist_id")
+
+# How many rows and columns are in the joined table?
+dim(joined)
+```
+#Semi joins
+
+Semi joins are the opposite of anti joins: an anti-anti join, if you like.
+
+A semi join returns the rows of the first table where it can find a match in the second table. The principle is shown in this diagram.
+
+semi_join(a_tibble, another_tibble, by = c("id_col1", "id_col2"))
+
+You may have spotted that the results of a semi join plus the results of an anti join give the orignial table. So, regardless of the table contents or how you join them, semi_join(A, B) plus anti_join(A, B) will return A (though maybe with the rows in a different order).
+
+A Spark connection has been created for you as spark_conn. Tibbles attached to the track metadata and artist terms stored in Spark have been pre-defined as track_metadata_tbl and artist_terms_tbl respectively.
+
+Use a semi join to join the artist terms to the track metadata by the artist_id column. Assign the result to joined.
+Use dim() to determine how many rows and columns there are in the joined table.
+```{r}
+# track_metadata_tbl and artist_terms_tbl have been pre-defined
+track_metadata_tbl
+artist_terms_tbl
+
+# Semi join artist terms to track metadata by artist_id
+joined <- semi_join(track_metadata_tbl,artist_terms_tbl,by="artist_id")
+
+# How many rows and columns are in the joined table?
+dim(joined)
+```
+#Transforming continuous variables to logical
+
+The sparklyr way of converting a continuous variable into logical uses ft_binarizer(). The previous diabetes example can be rewritten as the following. Note that the threshold value should be a number, not a string refering to a column in the dataset.
+
+diabetes_data %>%
+  ft_binarizer("plasma_glucose_concentration", "has_diabetes", threshold = threshold_mmol_per_l)
+
+In keeping with the Spark philosophy of using DoubleType everywhere, the output from ft_binarizer() isn't actually logical; it is numeric. This is the correct approach for letting you continue to work in Spark and perform other transformations, but if you want to process your data in R, you have to remember to explicitly convert the data to logical. The following is a common code pattern.
+
+a_tibble %>%
+  ft_binarizer("x", "is_x_big", threshold = threshold) %>%
+  collect() %>%
+  mutate(is_x_big = as.logical(is_x_big))
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+Create a variable named hotttnesss from track_metadata_tbl.
+Select the artist_hotttnesss field.
+Use ft_binarizer() to create a new field, is_hottt_or_nottt, which is true when artist_hotttnesss is greater than 0.5.
+Collect the result.
+Convert the is_hottt_or_nottt field to be logical.
+Draw a ggplot() bar plot of is_hottt_or_nottt.
+The first argument to ggplot() is the data argument, hotttnesss.
+The second argument to ggplot() is the aesthetic, is_hottt_or_nottt wrapped in aes().
+Add geom_bar() to draw the bars.
+```{r}
+# Connect to your Spark cluster
+spark_conn <- spark_connect("local")
+
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+hotttnesss <- track_metadata_tbl %>%
+  # Select artist_hotttnesss
+  select(artist_hotttnesss) %>%
+  # Binarize to is_hottt_or_nottt
+  ft_binarizer("artist_hotttnesss", "is_hottt_or_nottt", threshold = .5 ) %>%
+  # Collect the result
+  collect() %>%
+  # Convert is_hottt_or_nottt to logical
+  mutate(is_hottt_or_nottt = as.logical(is_hottt_or_nottt))
+
+# Draw a barplot of is_hottt_or_nottt
+ggplot(hotttnesss, aes(is_hottt_or_nottt)) +
+  geom_bar()
+
+# Disconnect from Spark
+spark_disconnect(spark_conn)
+```
+ft_binarizer() converts from continuous to logical; now you'll see how to convert from continuous to categorical.
+
+#Transforming continuous variables into categorical (1)
+smoking_status <- cut(
+  cigarettes_per_day,
+  breaks = c(0, 1, 10, 20, Inf),
+  labels = c("non", "light", "moderate", "heavy"),
+  right  = FALSE
+)
+
+The sparklyr equivalent of this is to use ft_bucketizer(). The code takes a similar format to ft_binarizer(), but this time you must pass a vector of cut points to the splits argument. Here is the same example rewritten in sparklyr style.
+
+smoking_data %>%
+  ft_bucketizer("cigarettes_per_day", "smoking_status", splits = c(0, 1, 10, 20, Inf))
+
+The final thing to note is that whereas cut() returns a factor, ft_bucketizer() returns a numeric vector, with values in the first bucket returned as zero, values in the second bucket returned as one, values in the third bucket returned as two, and so on. If you want to work on the results in R, you need to explicitly convert to a factor. This is a common code pattern:
+
+a_tibble %>%
+  ft_bucketizer("x", "x_buckets", splits = splits) %>%
+  collect() %>%
+  mutate(x_buckets = factor(x_buckets, labels = labels)
+  
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl. decades is a numeric sequence of 1920, 1930, ..., 2020, and decade_labels is a text description of those decades.
+
+Create a variable named hotttnesss_over_time from track_metadata_tbl.
+Select the artist_hotttnesss and year fields.
+Convert the year column to numeric.
+Use ft_bucketizer() to create a new field, decade, which splits the years using decades.
+Collect the result.
+Convert the decade field to a factor with labels decade_labels.
+Draw a ggplot() bar plot of artist_hotttnesss by decade.
+The first argument to ggplot() is the data argument, hotttnesss_over_time.
+The second argument to ggplot() is the aesthetic, which takes decade and artist_hotttnesss wrapped in aes().
+Add geom_boxplot() to draw the bars.
+```{r}
+# track_metadata_tbl, decades, decade_labels have been pre-defined
+track_metadata_tbl
+decades <- c(1930.01,	1940.01,	1950.01,	1960.01,	1970.01,	1980.01,	1990.01,	2000.01,	2010.01)
+decade_labels <- c("1930-1940",	"1940-1950",	"1950-1960",	"1960-1970",	"1970-1980",	"1980-1990",
+"1990-2000",	"2000-2010")
+
+hotttnesss_over_time <- track_metadata_tbl %>%
+  # Select artist_hotttnesss and year
+  select(artist_hotttnesss, year) %>%
+  # Convert year to numeric
+  mutate(year = as.numeric(year)) %>%
+  # Bucketize year to decade
+  ft_bucketizer("year", "decade", splits = decades) %>%
+  # Collect the result
+  collect() %>%
+  # Convert decade to factor
+  mutate(decade = factor(decade, labels = decade_labels))
+
+# Draw a boxplot of artist_hotttnesss by decade
+ggplot(hotttnesss_over_time, aes(decade, artist_hotttnesss)) +
+  geom_boxplot()  
+```
+#Transforming continuous variables into categorical (2)
+
+survey_response_group <- cut(
+  survey_score,
+  breaks = quantile(survey_score, c(0, 0.25, 0.5, 0.75, 1)),
+  labels = c("hate it", "dislike it", "like it", "love it"),
+  right  = FALSE,
+  include.lowest = TRUE
+)
+survey_data %>%
+  ft_quantile_discretizer("survey_score", "survey_response_group", n.buckets = 4)
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl. duration_labels is a character vector describing lengths of time.
+
+Create a variable named familiarity_by_duration from track_metadata_tbl.
+Select the duration and artist_familiarity fields.
+Use ft_quantile_discretizer() to create a new field, duration_bin, made from 5 quantile bins of duration.
+Collect the result.
+Convert the duration_bin field to a factor with labels duration_labels.
+Draw a ggplot() box plot of artist_familiarity by duration_bin.
+The first argument to ggplot() is the data argument, familiarity_by_duration.
+The second argument to ggplot() is the aesthetic, which takes duration_bin and artist_familiarity wrapped in aes().
+Add geom_boxplot() to draw the bars.
+```{r}
+duration_labels <- c("very,	short",	"short",	"medium",	"long",	"very,	long")
+
+# track_metadata_tbl, duration_labels have been pre-defined
+track_metadata_tbl
+duration_labels
+
+familiarity_by_duration <- track_metadata_tbl %>%
+  # Select duration and artist_familiarity
+  select(duration, artist_familiarity) %>%
+  # Bucketize duration
+  ft_quantile_discretizer("duration", "duration_bin", n.buckets=5) %>%
+  # Collect the result
+  collect() %>%
+  # Convert duration bin to factor
+  mutate(duration_bin=factor(duration_bin, labels=duration_labels))
+
+# Draw a boxplot of artist_familiarity by duration_bin
+ggplot(familiarity_by_duration, aes(duration_bin, artist_familiarity)) +
+  geom_boxplot()  
+```
+#More than words: tokenization (1)
+
+library(tidyr)
+text_data %>%
+  ft_tokenizer("sentences", "word") %>%
+  collect() %>%
+  mutate(word = lapply(word, as.character)) %>%
+  unnest(word)
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+Create a variable named title_text from track_metadata_tbl.
+Select the artist_name and title fields.
+Use ft_tokenizer() to create a new field, word, which contains the title split into words.
+Collect the result.
+Mutate the word column, flattening it to a list of character vectors using lapply and as.character.
+Use unnest() to flatten the list column, and get one word per row.
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+title_text <- track_metadata_tbl %>%
+  # Select artist_name, title
+  select(artist_name, title) %>%
+  # Tokenize title to words
+  ft_tokenizer("title", "word") %>%
+  # Collect the result
+  collect() %>%
+  # Flatten the word column 
+  mutate(word = lapply(word, as.character)) %>% 
+  # Unnest the list column
+  unnest(word)
+```
+#More than words: tokenization (2)
+
+Sentiment analysis essentially lets you assign a score or emotion to each word. For example, in the AFINN lexicon, the word "outstanding" has a score of +5, since it is almost always used in a positive context. "grace" is a slightly positive word, and has a score of +1. "fraud" is usually used in a negative context, and has a score of -4. The AFINN scores dataset is returned by get_sentiments("afinn"). For convenience, the unnested word data and the sentiment lexicon have been copied to Spark.
+
+text_data %>%
+  inner_join(sentiments, by = "word") %>%
+  group_by(some_group) %>%
+  summarize(positivity = sum(score))
+```{r}
+afinn_sentiments_tbl <- read_csv("~/R Scripts/afinn_sentiments_tbl.csv")
+title_text_tbl <- read_csv("~/R Scripts/title_text.csv")
+
+# title_text_tbl, afinn_sentiments_tbl have been pre-defined
+#title_text_tbl
+#afinn_sentiments_tbl
+
+sentimental_artists <- title_text_tbl %>%
+  # Inner join with sentiments on word field
+  inner_join(afinn_sentiments_tbl, by="word") %>%
+  # Group by artist
+  group_by(artist_name) %>%
+  # Summarize to get positivity
+  summarize(positivity=sum(score))
+
+sentimental_artists %>%
+  # Arrange by ascending positivity
+  arrange(positivity) %>%
+  # Get top 5
+  top_n(5)
+
+sentimental_artists %>%
+  # Arrange by descending positivity
+  arrange(desc(positivity)) %>%
+  # Get top 5
+  top_n(5)
+```
+#More than words: tokenization (3)
+
+ft_tokenizer() uses a simple technique to generate words by splitting text data on spaces. For more advanced usage, you can use regular expressions to split the text data. This is done via the ft_regex_tokenizer() function, which has the same usage as ft_tokenizer(), but with an extra pattern argument for the splitter.
+
+a_tibble %>%
+  ft_regex_tokenizer("x", "y", pattern = regex_pattern)
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+track_metadata_tbl %>%
+  # Select artist_mbid column
+  select(artist_mbid) %>%
+  # Split it by hyphens
+  ft_regex_tokenizer("artist_mbid", "artist_mbid_chunks", pattern = "-")
+```
+#Sorting vs. arranging
+
+For example, to sort by column x, then (in the event of ties) by column y, then by column z, the following code compares the dplyr and Spark DataFrame approaches.
+
+a_tibble %>%
+  arrange(x, y, z)
+a_tibble %>%
+  sdf_sort(c("x", "y", "z"))
+To see which method is faster, try using both arrange(), and sdf_sort(). You can see how long your code takes to run by wrapping it in microbenchmark(), from the package of the same name.
+
+microbenchmark({
+  # your code
+})
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+Use microbenchmark() to compare how long it takes to perform the following actions.
+Use arrange() to order the rows of track_metadata_tbl by year, then artist_name, then release, then title.
+Collect the result.
+Do the same thing again, this time using sdf_sort() rather than arrange(). Remember to quote the column names.
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+# Compare timings of arrange() and sdf_sort()
+microbenchmark(
+  arranged = track_metadata_tbl %>%
+    # Arrange by year, then artist_name, then release, then title
+    arrange(year,artist_name,release,title) %>%
+    # Collect the result
+    collect(),
+  sorted = track_metadata_tbl %>%
+    # Sort by year, then artist_name, then release, then title
+    sdf_sort(c("year","artist_name","release","title")) %>%
+    # Collect the result
+    collect(),
+  times = 5
+)
+```
+#Exploring Spark data types
+
+sparklyr has a function named sdf_schema() for exploring the columns of a tibble on the R side. It's easy to call; and a little painful to deal with the return value.
+
+sdf_schema(a_tibble)
+
+The return value is a list, and each element is a list with two elements, containing the name and data type of each column
+
+
+R type	Spark type
+
+logical	   BooleanType
+numeric	   DoubleType
+integer	   IntegerType
+character	 StringType
+list	     ArrayType
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+Call sdf_schema() to get the schema of the track metadata.
+Run the transformation code on schema to see it in a more readable tibble format.
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+# Get the schema
+(schema <- sdf_schema(track_metadata_tbl))
+
+# Transform the schema
+schema %>%
+  lapply(function(x) do.call(data_frame, x)) %>%
+  bind_rows()
+```
+#Shrinking the data by sampling
+
+To get a random sample of one tenth of your dataset, you would use the following code.
+
+a_tibble %>%
+  sdf_sample(fraction = 0.1, replacement = FALSE)
+  
+Since the results of the sampling are random, and you will likely want to reuse the shrunken dataset, it is common to use compute() to store the results as another Spark data frame.
+
+a_tibble %>%
+  sdf_sample(<some args>) %>%
+  compute("sample_dataset")
+  
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+track_metadata_tbl %>%
+  # Sample the data without replacement
+  sdf_sample(fraction=.01, replacement = FALSE, seed=20000229) %>%
+  # Compute the result
+  compute("sample_track_metadata")
+```
+#Training/testing partitions
+
+sdf_partition() provides a way of partitioning your data frame into training and testing sets. Its usage is as follows.
+
+a_tibble %>%
+  sdf_partition(training = 0.7, testing = 0.3)
+  
+a_tibble %>%
+  sdf_partition(a = 0.1, b = 0.2, c = 0.3, d = 0.4)
+  
+The return value is a list of tibbles. you can access each one using the usual list indexing operators.
+
+partitioned$a
+partitioned[["b"]]
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the track metadata stored in Spark has been pre-defined as track_metadata_tbl.
+
+Use sdf_partition() to split the track metadata.
+Put 70% in a set named training.
+Put 30% in a set named testing.
+Get the [dim()ensions of the training tibble.
+Get the dimensions of the testing tibble.
+```{r}
+# track_metadata_tbl has been pre-defined
+track_metadata_tbl
+
+partitioned <- track_metadata_tbl %>%
+  # Partition into training and testing sets
+  sdf_partition(training = 0.7, testing = 0.3)
+
+# Get the dimensions of the training set
+dim(partitioned$training)
+
+# Get the dimensions of the testing set
+dim(partitioned$testing)
+```
+#Machine learning functions
+
+a_tibble %>%
+  ft_some_model("response", c("a_feature", "another_feature"), some_other_args)
+  
+Supported machine learning functions include linear regression and its variants, tree-based models (ml_decision_tree(), and a few others. You can see the list of all the machine learning functions using ls().
+```{r}
+ls("package:sparklyr", pattern = "^ml")
+```
+#(Hey you) What's that sound?
+
+timbre, containing the timbre measurements for Lady Gaga's "Poker Face", has been pre-defined in your workspace.
+
+Use colMeans() to get the column means of timbre. Assign the results to mean_timbre.
+```{r}
+timbre <- read_csv("~/R Scripts/timbre.csv")
+rownames(timbre) <- timbre$X1
+timbre$X1 <- NULL
+
+
+# timbre has been pre-defined
+#timbre
+
+# Calculate column means
+(mean_timbre <- colMeans(timbre))
+```
+#Working with parquet files
+
+CSV files are great for saving the contents of rectangular data objects (like R data.frames and Spark DataFrames) to disk. The problem is that they are really slow to read and write, making them unusable for large datasets. Parquet files provide a higher performance alternative. As well as being used for Spark data, parquet files can be used with other tools in the Hadoop ecosystem, like Shark, Impala, Hive, and Pig.
+
+Technically speaking, parquet file is a misnomer. When you store data in parquet format, you actually get a whole directory worth of files. The data is split across multiple .parquet files, allowing it to be easily stored on multiple machines, and there are some metadata files too, describing the contents of each column.
+
+sparklyr can import parquet files using spark_read_parquet(). This function takes a Spark connection, a string naming the Spark DataFrame that should be created, and a path to the parquet directory. Note that this function will import the data directly into Spark, which is typically faster than importing the data into R, then using copy_to() to copy the data from R to Spark.
+
+spark_read_parquet(sc, "a_dataset", "path/to/parquet/dir")
+
+A Spark connection has been created for you as spark_conn. A string pointing to the parquet directory (on the file system where R is running) has been created for you as parquet_dir.
+
+Use dir() to list the absolute file paths of the files in the parquet directory, assigning the result to filenames.
+The first argument should be the directory whose files you are listing, parquet_dir.
+To retrieve the absolute (rather than relative) file paths, you should also pass full.names = TRUE.
+Create a data_frame with two columns.
+filename should contain the filenames you just retrieved, without the directory part. Create this by passing the filenames to basename().
+size_bytes should contain the file sizes of those files. Create this by passing the filenames to file.size().
+Use spark_read_parquet() to import the timbre data into Spark, assigning the result to timbre_tbl.
+The first argument should be the Spark connection.
+The second argument should be "timbre".
+The third argument should be parquet_dir.
+```{r}
+# parquet_dir has been pre-defined
+parquet_dir
+
+# List the files in the parquet dir
+filenames <- dir(parquet_dir, full.names=TRUE)
+
+# Show the filenames and their sizes
+data_frame(
+  filename = basename(filenames),
+  size_bytes = file.size(filenames)
+)
+
+# Import the data into Spark
+timbre_tbl <- spark_read_parquet(spark_conn, "timbre", parquet_dir)
+```
+#Come together
+
+A Spark connection has been created for you as spark_conn. Tibbles attached to the track metadata and timbre data stored in Spark have been pre-defined as track_metadata_tbl and timbre_tbl respectively.
+
+Inner join the track metadata to the timbre data by the track_id column.
+Convert the year column to numeric.
+```{r}
+timbre_tbl <- read_csv("~/R Scripts/timbre_tbl.csv")
+
+# track_metadata_tbl, timbre_tbl pre-defined
+#track_metadata_tbl
+#timbre_tbl
+
+track_metadata_tbl %>%
+  # Inner join to timbre_tbl
+  inner_join(timbre_tbl, by = "track_id") %>%
+  # Convert year to numeric
+  mutate(year=as.numeric(year))
+```
+#Partitioning data with a group effect
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the combined and filtered track metadata/timbre data stored in Spark has been pre-defined as track_data_tbl.
+
+Partition the artist IDs into training and testing sets, assigning the result to training_testing_artist_ids.
+Select the artist_id column of track_data_tbl.
+Get distinct rows.
+Partition this into 70% training and 30% testing.
+Inner join the training dataset to track_data_tbl by artist_id, assigning the result to track_data_to_model_tbl.
+Inner join the testing dataset to track_data_tbl by artist_id, assigning the result to track_data_to_predict_tbl.
+```{r}
+track_data <- read_csv("~/R Scripts/track_data.csv")
+track_data_tbl <- tbl_df(track_data)
+View(track_data)
+# track_data_tbl has been pre-defined
+#track_data_tbl
+
+training_testing_artist_ids <- track_data_tbl %>%
+  # Select the artist ID
+  select(artist_id) %>%
+  # Get distinct rows
+  distinct() %>%
+  # Partition into training/testing sets
+  sdf_partition(training = 0.7, testing = 0.3)
+
+track_data_to_model_tbl <- track_data_tbl %>%
+  # Inner join to training partition
+  inner_join(training_testing_artist_ids$training, by = "artist_id")
+
+track_data_to_predict_tbl <- track_data_tbl %>%
+  # Inner join to testing partition
+  inner_join(training_testing_artist_ids$testing, by = "artist_id")
+```
+#Gradient boosted trees: modeling
+
+Gradient boosting is a technique to improve the performance of other models. The idea is that you run a weak but easy to calculate model. Then you replace the response values with the residuals from that model, and fit another model. By "adding" the original response prediction model and the new residual prediction model, you get a more accurate model. You can repeat this process over and over, running new models to predict the residuals of the previous models, and adding the results in. With each iteration, the model becomes stronger and stronger.
+
+To give a more concrete example, sparklyr uses gradient boosted trees, which means gradient boosting with decision trees as the weak-but-easy-to-calculate model. These can be used for both classification problems (where the response variable is categorical) and regression problems (where the response variable is continuous). In the regression case, as you'll be using here, the measure of how badly a point was fitted is the residual.
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the combined and filtered track metadata/timbre data stored in Spark has been pre-defined as track_data_tbl.
+
+Get the columns containing the string "timbre" to use as features.
+Use colnames() to get the column names of track_data_to_model_tbl. Note that names() won't give you what you want.
+Use str_subset() to filter the columns.
+The pattern argument to that function should be fixed("timbre").
+Assign the result to feature_colnames.
+Run the gradient boosting model.
+Call ml_gradient_boosted_trees().
+The output (response) column is "year".
+The input columns are feature_colnames.
+Assign the result to gradient_boosted_trees_model.
+```{r}
+# track_data_to_model_tbl has been pre-defined
+track_data_to_model_tbl
+
+feature_colnames <- track_data_to_model_tbl %>%
+  # Get the column names
+  colnames() %>%
+  # Limit to the timbre columns
+  str_subset(fixed("timbre"))
+
+gradient_boosted_trees_model <- track_data_to_model_tbl %>%
+  # Run the gradient boosted trees model
+  ml_gradient_boosted_trees("year", feature_colnames)
+```
+Bombastic boosting! Spark machine learning functions are easy to use.
+
+#Gradient boosted trees: prediction
+
+predict(a_model, testing_data)
+
+A common use case is to compare the predicted responses with the actual responses, which you can draw plots of in R. The code pattern for preparing this data is as follows. Note that currently adding a prediction column has to be done locally, so you must collect the results first.
+
+predicted_vs_actual <- testing_data %>%
+  select(response) %>%
+  collect() %>%
+  mutate(predicted_response = predict(a_model, testing_data))
+  
+A Spark connection has been created for you as spark_conn. Tibbles attached to the training and testing datasets stored in Spark have been pre-defined as track_data_to_model_tbl and track_data_to_predict_tbl respectively. The gradient boosted trees model has been pre-defined as gradient_boosted_trees_model.
+
+Select the year column.
+Collect the results.
+Add a column containing the predictions.
+Use mutate() to add a field named predicted_year.
+This field should be created by calling predict().
+Pass the model and the testing data to predict().
+```{r}
+# training, testing sets & model are pre-defined
+track_data_to_model_tbl
+track_data_to_predict_tbl
+gradient_boosted_trees_model
+
+responses <- track_data_to_predict_tbl %>%
+  # Select the response column
+  select(year) %>%
+  # Collect the results
+  collect() %>%
+  # Add in the predictions
+  mutate(
+    predicted_year = predict(
+      gradient_boosted_trees_model,
+      track_data_to_predict_tbl
+    )
+  )
+```
+#Gradient boosted trees: visualization
+
+One slightly tricky thing here is that sparklyr doesn't yet support the residuals() function in all its machine learning models. Consequently, you have to calculate the residuals yourself (predicted responses minus actual responses).
+
+A local tibble responses, containing predicted and actual years, has been pre-defined.
+
+Draw a scatterplot of predicted vs. actual responses.
+Call ggplot().
+The first argument is the dataset, responses.
+The second argument should contain the unquoted column names for the x and y axes (actual and predicted respectively), wrapped in aes().
+Add points by adding a call to geom_point().
+Make the points partially transparent by setting alpha = 0.1.
+Add a reference line by adding a call to geom_abline() with intercept = 0 and slope = 1.
+Create a tibble of residuals, named residuals.
+Call transmute() on the responses.
+The new column should be called residual.
+residual should be equal to the predicted response minus the actual response.
+Draw a density plot of residuals.
+Pipe the transmuted tibble to ggplot().
+ggplot() needs a single aesthetic, residual wrapped in aes().
+Add a probability density curve by calling geom_density().
+Add a vertical reference line through zero by calling geom_vline() with xintercept = 0.
+```{r}
+# responses has been pre-defined
+responses
+
+# Draw a scatterplot of predicted vs. actual
+ggplot(responses, aes(actual, predicted)) +
+  # Add the points
+  geom_point(alpha = 0.1) +
+  # Add a line at actual = predicted
+  geom_abline(intercept = 0, slope = 1)
+
+residuals <- responses %>%
+  # Transmute response data to residuals
+  transmute(residual=responses$predicted-responses$actual)
+
+# Draw a density plot of residuals
+ggplot(residuals, aes(residual)) +
+    # Add a density curve
+    geom_density() +
+    # Add a vertical line through zero
+    geom_vline(xintercept = 0)
+```
+#Random Forest: modeling
+
+Like gradient boosted trees, random forests are another form of ensemble model. That is, they use lots of simpler models (decision trees, again) and combine them to make a single better model. Rather than running the same model iteratively, random forests run lots of separate models in parallel, each on a randomly chosen subset of the data, with a randomly chosen subset of features. Then the final decision tree makes predictions by aggregating the results from the individual models.
+
+A Spark connection has been created for you as spark_conn. A tibble attached to the combined and filtered track metadata/timbre data stored in Spark has been pre-defined as track_data_to_model_tbl.
+
+Repeat your year prediction analysis, using a random forest model this time.
+Get the timbre columns from track_data_to_model_tbl and assign the result to feature_colnames.
+Run the random forest model and assign the result to random_forest_model.
+```{r}
+# track_data_to_model_tbl has been pre-defined
+track_data_to_model_tbl
+
+# Get the timbre columns
+feature_colnames <- track_data_to_model_tbl %>%
+  # Get the column names
+  colnames() %>%
+  # Limit to the timbre columns
+  str_subset(fixed("timbre"))
+
+# Run the random forest model
+random_forest_model <- track_data_to_model_tbl %>%
+  # Run the gradient boosted trees model
+  ml_random_forest("year", feature_colnames)
+```
+#Random Forest: prediction
+
+A Spark connection has been created for you as spark_conn. Tibbles attached to the training and testing datasets stored in Spark have been pre-defined as track_data_to_model_tbl and track_data_to_predict_tbl respectively. The random forest model has been pre-defined as random_forest_model.
+
+Select the year column of track_data_to_predict_tbl.
+Collect the results.
+Add a column containing the predictions.
+Use mutate() to add a field named predicted_year.
+This field should be created by calling predict().
+Pass the model and the testing data to predict().
+```{r}
+# training, testing sets & model are pre-defined
+track_data_to_model_tbl
+track_data_to_predict_tbl
+random_forest_model
+
+# Create a response vs. actual dataset
+responses <- track_data_to_predict_tbl %>%
+  # Select the response column
+  select(year) %>%
+  # Collect the results
+  collect() %>%
+  # Add in the predictions
+  mutate(
+    predicted_year = predict(
+      random_forest_model,
+      track_data_to_predict_tbl
+    )
+  )
+```
+#Random Forest: visualization
+
+A local tibble both_responses, containing predicted and actual years for both models, has been pre-defined.
+
+Update the predicted vs. actual response scatter plot.
+Use the both_responses dataset.
+Add a color aesthetic to draw each model in a different color. Use color = model.
+Rather than drawing the points, use geom_smooth() to draw a smooth curve for each model.
+Create a tibble of residuals, named residuals.
+Call mutate() on both_responses.
+The new column should be called residual.
+residual should be equal to the predicted response minus the actual response.
+Update the residual density plot.
+Add a color aesthetic to draw each model in a different color.
+```{r}
+# both_responses has been pre-defined
+both_responses
+
+# Draw a scatterplot of predicted vs. actual
+ggplot(both_responses, aes(actual, predicted, color = model)) +
+  # Add a smoothed line
+  geom_smooth() +
+  # Add a line at actual = predicted
+  geom_abline(intercept = 0, slope = 1)
+
+# Create a tibble of residuals
+residuals <- mutate(both_responses, residual=both_responses$predicted- both_responses$actual)
+
+# Draw a density plot of residuals
+ggplot(residuals, aes(residual, color = model)) +
+    # Add a density curve
+    geom_density() +
+    # Add a vertical line through zero
+    geom_vline(xintercept = 0)
+```
+#Comparing model performance
+
+both_responses, containing the predicted and actual year of the track from both models, has been pre-defined as a local tibble.
+
+Create a sum of squares of residuals dataset.
+Add a residual column, equal to the predicted response minus the actual response.
+Group the data by model.
+Calculate a summary statistic, rmse, equal to the square root of the mean of the residuals squared.
+```{r}
+# both_responses has been pre-defined
+both_responses
+
+# Create a residual sum of squares dataset
+both_responses %>%
+  mutate(residual= predicted - actual) %>%
+  group_by(model) %>%
+  summarize(rmse = sqrt(mean(residual^2)))
+
+```
+

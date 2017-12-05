@@ -1,0 +1,142 @@
+---
+title: "String Manipulation in R with stringr"
+author: Jeff Gross
+output: html_notebook
+---
+
+#Quotes
+
+####Background: There are cases where you need both ' and " inside the string. In this case, fall back to the first guideline and use " to define the string, but you'll have to escape any double quotes inside the string using a backslash (i.e. \").
+
+Line 1: The table was a large one, but the three were all crowded together at one corner of it:
+Line 2: "No room! No room!" they cried out when they saw Alice coming.
+Line 3:"There's plenty of room!" said Alice indignantly, and she sat down in a large arm-chair at one end of the table.
+
+```{r}
+# Define line1, no quotes inside the text, so just use quotes
+line1 <- "The table was a large one, but the three were all crowded together at one corner of it:"
+
+# Define line2, double quotes inside the text, so use single quotes
+line2 <- '"No room! No room!" they cried out when they saw Alice coming.'
+
+# Define line3, double & single quotes inside the text, so use escape (\")
+line3 <- "\"There's plenty of room!\" said Alice indignantly, and she sat down in a large arm-chair at one end of the table."
+```
+#What you see isn't always what you have
+
+####Background: You can pass writeLines() a vector of strings and it will print them to the screen, each on a new line. This is a great way to check the string you entered really does represent the string you wanted. The function cat() is very similar to writeLines(), but by default separates elements with a space, and will attempt to convert non-character objects to a string. 
+
+```{r}
+install.packages("emojifont")
+library(emojifont)
+
+line1 <- "The table was a large one, but the three were all crowded together at one corner of it:"
+line2 <- "\"No room! No room!\" they cried out when they saw Alice coming."
+line3 <- "\"There's plenty of room!\" said Alice indignantly, and she sat down in a large arm-chair at one end of the table."
+
+# Putting lines in a vector
+lines <- c(line1, line2, line3)
+
+# Print lines
+lines
+
+# Use writeLines() on lines
+writeLines(lines)
+
+# Write lines with a space separator
+writeLines(lines, sep=" ")
+
+# Use writeLines() on the string "hello\n\U1F30D"
+writeLines("hello\n\U1F30D")
+
+cat("\xa3")
+```
+#Escape sequences
+
+####Background: \U followed by up to 8 hex digits sequence denotes a particular Unicode character
+
+\n	newline
+\r	carriage return
+\t	tab
+\b	backspace
+\a	alert (bell)
+\f	form feed
+\v	vertical tab
+\\	backslash \
+\'	ASCII apostrophe '
+\"	ASCII quotation mark "
+\`	ASCII grave accent (backtick) `
+\nnn	character with given octal code (1, 2 or 3 digits)
+\xnn	character with given hex code (1 or 2 hex digits)
+\unnnn	Unicode character with given code (1--4 hex digits)
+\Unnnnnnnn	Unicode character with given code (1--8 hex digits)
+
+Alternative forms for the last two are \u{nnnn} and \U{nnnnnnnn}. All except the Unicode escape sequences are also supported when reading character strings by scan and read.table if allowEscapes = TRUE. Unicode escapes can be used to enter Unicode characters not in the current locale's charset (when the string will be stored internally in UTF-8).
+
+The parser does not allow the use of both octal/hex and Unicode escapes in a single string.
+
+These forms will also be used by print.default when outputting non-printable characters (including backslash).
+
+Embedded nuls are not allowed in character strings, so using escapes (such as \0) for a nul will result in the string being truncated at that point (usually with a warning).
+
+```{r}
+# Should display: To have a \ you need \\
+writeLines("To have a \\ you need \\\\")
+
+# Should display: 
+# This is a really 
+# really really 
+# long string
+writeLines("This is a really\nreally really\nlong string")
+
+# Use writeLines() with 
+# "\u0928\u092e\u0938\u094d\u0924\u0947 \u0926\u0941\u0928\u093f\u092f\u093e"
+writeLines("\u0928\u092e\u0938\u094d\u0924\u0947 \u0926\u0941\u0928\u093f\u092f\u093e")
+cat("\u0928\u092e\u0938\u094d\u0924\u0947 \u0926\u0941\u0928\u093f\u092f\u093e")
+```
+#Turning numbers into strings
+
+#Using format() with numbers
+
+```{r}
+# Some vectors of numbers
+percent_change  <- c(4, -1.91, 3.00, -5.002)
+income <-  c(72.19, 1030.18, 10291.93, 1189192.18)
+p_values <- c(0.12, 0.98, 0.0000191, 0.00000000002)
+
+# Format c(0.0011, 0.011, 1) with digits = 1
+format(c(0.0011, 0.011, 1), digits=1)
+
+# Format c(1.0011, 2.011, 1) with digits = 1
+format(c(1.0011, 2.011, 1), digits=1)
+
+# Format percent_change to one place after the decimal point
+format(percent_change, digits=2)
+
+# Format income to whole numbers
+format(income, digits=2)
+```
+#Using format() with numbers
+
+```{r}
+# Some vectors of numbers
+percent_change  <- c(4, -1.91, 3.00, -5.002)
+income <-  c(72.19, 1030.18, 10291.93, 1189192.18)
+p_values <- c(0.12, 0.98, 0.0000191, 0.00000000002)
+
+# Format c(0.0011, 0.011, 1) with digits = 1
+format(c(0.0011, 0.011, 1), digits=1)
+
+# Format c(1.0011, 2.011, 1) with digits = 1
+format(c(1.0011, 2.011, 1), digits=1)
+
+# Format percent_change to one place after the decimal point
+format(percent_change, digits=2)
+
+# Format income to whole numbers
+format(income, digits=2)
+```
+#Controlling other aspects of the string
+
+
+

@@ -1,0 +1,271 @@
+---
+title: "Intro to Statistics with R: Moderation and Mediation"
+output: html_notebook
+author: Jeff Gross
+---
+
+Data exploration
+70xp
+The example, used in this chapter and described in the video, is based on the idea of stereotype threat. The independent variable is the experimental manipulation or the stereotype threat and the dependent variable is the IQ test score (iq). The variable working memory capacity (wm) is the moderator. In this chapter you want to investigate how stereotype threat affects the IQ test scores with the idea that maybe working memory moderates that effect.
+
+The experiment is conducted in the following way: - students completed a working memory test. - students completed an IQ test. - students are randomly assigned to one of three experimental conditions: an explicit threat, an implicit threat or no threat. Each group consists of 50 students.
+
+It is always important to have a look at the data before you perform an analysis. The data is already loaded into your workspace under the name mod. Take a look at this data by typing head(mod) in the console.
+
+```{r}
+options(tibble.print_max = Inf)
+options(tibble.width = Inf)
+
+# The dataset `mod`
+install.packages("readr")
+install.packages("psych")
+library(readr)
+library(psych)
+mod <- read_csv("~/R Scripts/mod.csv")
+mod$condition <- as.factor(mod$condition)
+
+# Summary statistics
+describeBy(mod, mod$condition)
+
+# Create a boxplot of the data
+boxplot(formula=mod$iq ~ mod$condition, xlab="Group condition", ylab="IQ", main="Boxplot")
+```
+
+Calculate correlations
+
+It is also interesting to look at the correlations by group.
+
+A moderator predicts that the correlation between the predictor and the outcome will change in function of the group. So if a clear change is observed in the correlations as a function of group, then this can indicate a significant moderation effect.
+
+In this exercise, you have to calculate the correlations between the IQ scores iq and the working memory capacity wm by group.
+
+```{r}
+# Create subsets of the three groups
+
+# Make the subset for the group condition = "control"
+mod_control <- subset(mod, mod$condition=="control")
+
+# Make the subset for the group condition = "threat1"
+mod_threat1 <- subset(mod, mod$condition == "threat1")
+
+# Make the subset for the group condition = "threat2"
+mod_threat2 <- subset(mod, mod$condition == "threat2")
+
+# Calculate the correlations
+print(cor(mod_threat1$iq, mod_threat1$wm))
+print(cor(mod_control$iq, mod_control$wm))
+print(cor(mod_threat2$iq, mod_threat2$wm))
+
+```
+
+Model with and without moderation
+100xp
+To perform a moderation analysis, one needs to consider two models: one without moderation and one with moderation.
+
+Instructions
+Construct a model without any moderation, model_1, that represents the relationship between working memory capacity wm and IQ scores iq and the effect of stereotype threat. Recall that stereotype threat is a categorical predictor so it has to be dummy coded. The dummy variables are already included in the dataset and are called d1 and d2. They are representing respectively categories threat1 and threat2. Notice that you use the control group as reference group. Use the lm() function.
+Now set up a model with moderation: model_2. To make this model you have to define new predictor variables, because you need the products of the variable wm with both the dummy variables. Again, use the lm() function to set up the model.
+
+```{r}
+
+d <- C(mod$condition, contr=treatment)
+# Merge the dataset in an extended dataframe
+mod <- cbind(d,mod)
+mod
+
+# Model without moderation (tests for "first-order effects")
+model_1 <- lm(mod$iq ~ mod$wm + mod$d1 + mod$d2)
+
+# Make a summary of model_1
+summary(model_1)
+
+# Create new predictor variables
+wm_d1 <- mod$wm * mod$d1
+wm_d2 <- mod$wm * mod$d2
+
+# Model with moderation
+model_2 <- lm(mod$iq ~ mod$wm + mod$d1 + mod$d2 + wm_d1 + wm_d2)
+
+# Make a summary of model_2
+summary(model_2)
+```
+##Model comparison
+
+A model comparison might be performed formally by comparing model_1 versus model_2. The significance of a null hypothesis is tested.
+
+Instructions
+Use the function anova() to compare model_1 and model_2. The R function compares the two models in terms of the explained overall amount of variance in the outcome variable iq.
+```{r}
+# Compare model_1 and model_2
+anova(model_1,model_2)
+```
+
+Look at the results of the ANOVA output. What do you see and what does this mean? You work with a significance level of 0.05.
+
+The p-value indicates that the null hypothesis is rejected. This means that there is a significant difference between the two models, so the effect of the moderator is significant.
+
+##Scatterplot
+
+It is also interesting to illustrate the effects of working memory on IQ in some scatterplots.
+
+```{r}
+install.packages("ggplot2")
+library(ggplot2)
+
+# Choose colors to represent the points by group
+color <- c("red","green","blue")
+
+# Illustration of the first-order effects of working memory on IQ
+ggplot(mod, aes(x = wm, y = iq)) + geom_smooth(method = "lm", color = "black") +
+  geom_point(aes(color = condition))
+
+# Illustration of the moderation effect of working memory on IQ
+ggplot(mod, aes(x = wm, y = iq)) +
+  geom_smooth(aes(group = condition), method = "lm", se = T, color = "black", fullrange = T) +
+  geom_point(aes(color = condition))
+```
+
+##Centering data
+
+The example used in this chapter is the same as in the previous one. Recall that the independent variable is the experimental manipulation, so the stereotype threat, and the dependent variable is the IQ test score (iq). The variable working memory capacity (wm) is the moderator. Furthermore, remember that you want to investigate how stereotype threat affects the IQ test scores with the idea that maybe working memory moderates that effect.
+
+Now you will look at the basic concepts of centering predictors. The data set mod, which is loaded into your workspace, already contains the centered data of the variable wm, namely wm.centered.
+
+In the following exercise, you will try to center the variable wm yourself.
+
+```{r}
+# Define wm_center
+wm_center <- mod$wm - mean(mod$wm)
+
+# Compare with the variable wm.centered
+all.equal(wm_center, mod$wm.centered)
+```
+
+##Centering versus no centering
+
+What happens to our model when you use centered data instead of the actual data?
+
+In the previous chapter you set up a model (model_1) that represents the relationship between working memory capacity (wm) and IQ scores (iq), and the effect of stereotype threat without any moderation. The model (model_1) is loaded in the workspace and might be used for comparison with models based on centered data.
+
+To see what happens when you use centered data, you first have to make a model that represents the same as model_1 but uses centered data instead.
+
+```{r}
+# Model without moderation and with centered data
+model_1_centered <- lm(mod$iq ~ mod$WM.centered + mod$d1 + mod$d2)
+
+# Make a summary of model_1_centered
+summary(model_1_centered)
+```
+
+Centering versus no centering with moderation
+70xp
+Again you want to look at what happens to our model when you use centered data instead of the actual data, but now for the model with moderation.
+
+In the previous chapter you set up a model (model_2) that represents the relationship between working memory capacity (wm) and IQ scores (iq) and the effect of stereotype threat with moderation. The model (model_2) is loaded in the workspace and might be used for comparison with models based on centered data.
+
+To see what happens when you use centered data, you first have to make a model that represents the same as model_2 but uses centered data instead.
+```{r}
+# Create new predictor variables
+wm_d1_centered <- mod$WM.centered*mod$d1
+wm_d2_centered <- mod$WM.centered*mod$d2
+
+# Define model_2_centered
+model_2_centered <- lm(mod$iq ~ mod$WM.centered + mod$d1 + mod$d2 + wm_d1_centered + wm_d2_centered)
+
+# Make a summary of model_2_centered
+summary(model_2_centered)
+```
+Model comparison
+100xp
+In the previous chapter you did a model comparison to conclude that the moderation effect is significant. Let's do this again but now with the centered data.
+
+Assume that you centered the data before any analysis. You did not yet conclude that the moderation effect is significant. To get a conclusion, you have to do model comparison by simply comparing model_1_centered versus model_2_centered with a null hypothesis significance test.
+```{r}
+# Compare model_1_centered and model_2_centered
+anova(model_1_centered, model_2_centered)
+
+# Compare model_1 and model_2
+anova(model_1, model_2)
+```
+Statistical reason: interpretation results
+50xp
+Based on your previous results, where can it go wrong if you are conducting a GLM with moderation and without centering? Does centering solve this problem?
+If you type rbind(c(cor_wmd1, cor_wmd2), c(cor_wmd1_centered, cor_wmd2_centered)) and rbind(c(cor_d1d1, cor_d2d2), c(cor_d1d1_centered, cor_d2d2_centered)) in the console, you get the two tables with correlations of the previous exercise. You need these results to answer the question!
+Possible Answers
+. The two predictors wm and the product of wm and d1 are lowly correlated, this can cause some problems for the glm. The same correlation of these two predictors, but with centered data, is higher. Thus centered data can avoid computational problems in this case. The same can be said about the two predictors wm and the product of wm and d2.
+ANSWER:. The two predictors d1 and the product of wm and d1 are lowly correlated, this can cause some problems for the glm. The same correlation of these two predictors, but with centered data, is higher. Thus centered data can avoid computational problems in this case. The same can be said about the two predictors d2 and the product of wm and d2.
+The two predictors d1 and the product of wm and d1 are highly correlated, this can cause some problems for the glm. The same correlation of these two predictors, but with centered data, is lower. Thus centered data can avoid computational problems in this case. The same can be said about the two predictors d2 and the product of wm and d2.
+
+> cor_wmd1=cor(mod$wm,wm_d1)
+[1] 0.1696231
+> cor_wmd2=cor(mod$wm,wm_d2)
+[1] -0.04339472
+> cor_wmd1_centered=cor(mod$wm,wm_d1_centered)
+[1] 0.5298278
+> cor_wmd2_centered= cor(mod$wm,wm_d2_centered)
+[1] 0.6119803
+> cor_d1d1= cor(mod$d1,wm_d1)
+[1] 0.980071
+
+Correct! The correlations between d1 and wm * d1 and between d2 and wm * d2 are very high, respectively 0.98 and 0.97. Recall that when two predictor variables in a GLM are so highly correlated that they are essentially redundant, it can become difficult to estimate the values associated with each predictor. So multicollinearity is problematic. Using centered data, the correlations are reduced to respectively 0.08 and -0.21. Centered data lowers the correlations and can thus avoid these computational problems.
+
+##Run 3 regression models on the data
+
+At this stage you should be able to test for mediation. Let's put the theory into practice.
+
+Instructions
+Formulate three regression models based on the med dataset and using the lm() function:
+
+model_yx = the relationship between the outcome (iq) and the predictor (condition).
+model_mx = the relationship between the mediator (wm) and the predictor (condition).
+model_ymx = the relationship between the outcome (iq) and the mediator (wm) and the predictor (condition).
+Make a summary of each model using the summary() function.
+```{r}
+med <- read_csv("~/R Scripts/med.csv")
+med$condition = as.factor(med$condition)
+
+# Run the three regression models
+model_yx <- lm(med$iq ~ med$condition)
+model_mx <- lm(med$wm ~ med$condition)
+model_yxm <- lm(med$iq ~ med$condition + med$wm)
+
+# Make a summary of the three models
+summary(model_yx)
+summary(model_mx)
+summary(model_yxm)
+```
+Yes, there is mediation because there is a significant relation between the predictor and the outcome, the predictor and the mediator and because there is no significance anymore of the predictor in the full model.
+
+Is there partial or full mediation in the example? See the models you can access via ls().
+
+You have full mediation. The coefficient for threat becomes insignificant in the full model: the coefficient is not significantly different from zero. You can say that it drops all the way to zero.
+
+```{r}
+install.packages("multilevel")
+library(multilevel)
+
+
+```
+
+##Sobel test
+
+The multilevel R package contains a function sobel(). The sobel()function runs the whole mediation analysis which is very convenient.
+
+You can find more information about the sobel test here.
+
+Instructions
+Perform the mediation analysis using the sobel() function.
+
+
+```{r}
+# Compare the previous results to the output of the sobel function
+model_all <- sobel(med$condition, med$wm, med$iq)
+
+# Print out model_all
+model_all
+```
+Look at the output of the sobel test. An identical regression model must be presented.
+Consider the z-value in the output. In general, a z-value with an absolute value larger than 1.96 implies significance at a 0.05 (????) significance level. The z-value equals -3.87 and indicates that the sobel test is significant. This observation is consistent with your previous conclusions.
+
+
+

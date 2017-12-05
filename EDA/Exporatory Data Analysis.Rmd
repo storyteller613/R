@@ -1,0 +1,360 @@
+---
+title: "Exploratory Data Analysis"
+output: html_notebook
+author: Jeff Gross
+---
+
+##Improve piechart
+
+The piechart is a very common way to represent the distribution of a single categorical variable, but they can be more difficult to interpret than barcharts.
+
+This is a piechart of a dataset called pies that contains the favorite pie flavors of 98 people. Improve the representation of these data by constructing a barchart that is ordered in descending order of count.
+
+```{r}
+options(tibble.print_max = Inf)
+options(tibble.width = Inf)
+
+pies <- read_csv("~/R Scripts/pies.csv")
+
+# Put levels of flavor in decending order
+lev <- c("apple", "key lime", "boston creme", "blueberry", "cherry", "pumpkin", "strawberry")
+pies$flavor <- factor(pies$flavor, levels = lev)
+
+# Create barchart of flavor
+ggplot(pies, aes(x = flavor)) + 
+  geom_bar(fill = "chartreuse") + 
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+##Faceted histogram
+
+In this chapter, you'll be working with the cars dataset, which records characteristics on all of the new models of cars for sale in the US in a certain year. You will investigate the distribution of mileage across a categorial variable, but before you get there, you'll want to familiarize yourself with the dataset.
+```{r}
+# Load package
+library(ggplot2)
+
+cars <- read_csv("~/R Scripts/cars.csv")
+
+# Learn data structure
+str(cars)
+
+# Create faceted histogram
+ggplot(cars, aes(x = city_mpg)) +
+  geom_histogram() +
+  facet_wrap(~ suv)
+```
+##Boxplots and density plots
+
+The mileage of a car tends to be associated with the size of its engine (as measured by the number of cylinders). To explore the relationship between these two variables, you could stick to using histograms, but in this exercise you'll try your hand at two alternatives: the box plot and the density plot.
+```{r}
+# Filter cars with 4, 6, 8 cylinders
+common_cyl <- filter(cars, ncyl %in% c(4, 6, 8))
+
+# Create box plots of city mpg by ncyl
+ggplot(common_cyl, aes(x = as.factor(ncyl), y = city_mpg)) +
+  geom_boxplot()
+
+# Create overlaid density plots for same data
+ggplot(common_cyl, aes(x = city_mpg, fill = as.factor(ncyl))) +
+  geom_density(alpha = .3)
+```
+##Marginal and conditional histograms
+
+Now, turn your attention to a new variable: horsepwr. The goal is to get a sense of the marginal distribution of this variable and then compare it to the distribution of horsepower conditional on the price of the car being less than $25,000.
+
+You'll be making two plots using the "data pipeline" paradigm, where you start with the raw data and end with the plot.
+```{r}
+# Create hist of horsepwr
+cars %>%
+  ggplot(aes(x=horsepwr)) +
+  geom_histogram() +
+  ggtitle("Horsepower")
+
+# Create hist of horsepwr for affordable cars
+cars %>% 
+  filter(msrp<25000) %>%
+  ggplot(aes(x=horsepwr)) +
+   geom_histogram() +
+  xlim(c(90, 550)) +
+  ggtitle("Horsepower,msrp<25K")
+```
+##Three binwidths
+
+Before you take these plots for granted, it's a good idea to see how things change when you alter the binwidth. The binwidth determines how smooth your distribution will appear: the smaller the binwidth, the more jagged your distribution becomes. It's good practice to consider several binwidths in order to detect different types of structure in your data.
+```{r}
+# Create hist of horsepwr with binwidth of 3
+cars %>%
+  ggplot(aes(x=horsepwr)) +
+  geom_histogram(binwidth = 3) +
+  ggtitle("Horsepower-bin=3")
+
+# Create hist of horsepwr with binwidth of 30
+cars %>%
+  ggplot(aes(x=horsepwr)) +
+  geom_histogram(binwidth = 30) +
+  ggtitle("Horsepower-bin=30")
+
+# Create hist of horsepwr with binwidth of 60
+cars %>%
+  ggplot(aes(x=horsepwr)) +
+  geom_histogram(binwidth = 60) +
+  ggtitle("Horsepower-bin=60")
+
+```
+Box plots for outliers
+70xp
+In addition to indicating the center and spread of a distribution, a box plot provides a graphical means to detect outliers. You can apply this method to the msrp column (manufacturer's suggested retail price) to detect if there are unusually expensive or cheap cars.
+```{r}
+# Construct box plot of msrp
+cars %>%
+  ggplot(aes(x = 1, y = msrp)) +
+  geom_boxplot()
+
+# Exclude outliers from data
+cars_no_out <- cars %>%
+  filter(msrp<100000)
+
+# Construct box plot of msrp using the reduced dataset
+cars_no_out %>%
+  ggplot(aes(x = 1, y = msrp)) +
+  geom_boxplot()
+```
+##Plot selection
+
+Consider two other columns in the cars dataset: city_mpg and width. Which is the most appropriate plot for displaying the important features of their distributions? Remember, both density plots and box plots display the central tendency and spread of the data, but the box plot is more robust to outliers.
+```{r}
+# Create plot of city_mpg
+cars %>%
+  ggplot(aes(x=1, y=city_mpg)) +
+  geom_boxplot()
+
+# Create plot of width
+cars %>% 
+  ggplot(aes(x=width)) +
+  geom_density()
+```
+##3 variable plot
+
+Faceting is a valuable technique for looking at several conditional distributions at the same time. If the faceted distributions are laid out in a grid, you can consider the association between a variable and two others, one on the rows of the grid and the other on the columns.
+```{r}
+
+# Facet hists using hwy mileage and ncyl
+common_cyl %>%
+  ggplot(aes(x = hwy_mpg)) +
+  geom_histogram() +
+  facet_grid(ncyl ~ suv) +
+  ggtitle("Faceted Hwy_mpg")
+```
+##Calculate center measures
+
+Throughout this chapter, you will use data from gapminder, which tracks demographic data in countries of the world over time. To learn more about it, you can bring up the help file with ?gapminder.
+
+For this exercise, focus on how the life expectancy differs from continent to continent. This requires that you conduct your analysis not at the country level, but aggregated up to the continent level. This is made possible by the one-two punch of group_by() and summarize(), a very powerful syntax for carrying out the same analysis on different subsets of the full dataset.
+```{r}
+gapminder <- read_csv("~/R Scripts/gapminder.csv")
+
+# Create dataset of 2007 data
+gap2007 <- filter(gapminder, year==2007)
+
+# Compute groupwise mean and median lifeExp
+gap2007 %>%
+  group_by(continent) %>%
+  summarize(mean(lifeExp),
+            median(lifeExp))
+
+# Generate box plots of lifeExp for each continent
+gap2007 %>%
+  ggplot(aes(x = continent, y = lifeExp)) +
+  geom_boxplot()
+```
+##Calculate spread measures
+
+Let's extend the powerful group_by() and summarize() syntax to measures of spread. If you're unsure whether you're working with symmetric or skewed distributions, it's a good idea to consider a robust measure like IQR in addition to the usual measures of variance or standard deviation.
+```{r}
+# Compute groupwise measures of spread
+gap2007 %>%
+  group_by(continent) %>%
+  summarize(sd(lifeExp),
+            IQR(lifeExp),
+            n())
+
+# Generate overlaid density plots
+gap2007 %>%
+  ggplot(aes(x = lifeExp, fill =continent )) +
+  geom_density(alpha = 0.3)
+```
+Choose measures for center and spread
+70xp
+Consider the density plots shown here. What are the most appropriate measures to describe their centers and spreads? In this exercise, you'll select the measures and then calculate them.
+```{r}
+# Compute stats for lifeExp in Americas
+gap2007 %>%
+  filter(continent == "Americas") %>%
+  summarize(mean(lifeExp),
+            sd(lifeExp))
+
+# Compute stats for population
+gap2007 %>%
+  summarize(median(pop),
+            IQR(pop))
+```
+Transformations
+70xp
+Highly skewed distributions can make it very difficult to learn anything from a visualization. Transformations can be helpful in revealing the more subtle structure.
+
+Here you'll focus on the population variable, which exhibits strong right skew, and transform it with the natural logarithm function (log() in R).
+```{r}
+# Create density plot of old variable
+gap2007 %>%
+  ggplot(aes(x = pop)) +
+  geom_density()
+
+# Transform the skewed pop variable
+gap2007 <- gap2007 %>%
+  mutate(log_pop=log(pop))
+
+# Create density plot of new variable
+gap2007 %>%
+  ggplot(aes(x = log_pop)) +
+  geom_density()
+  
+```
+##Identify outliers
+
+Consider the distribution, shown here, of the life expectancies of the countries in Asia. The box plot identifies one clear outlier: a country with a notably low life expectancy. Do you have a guess as to which country this might be? Test your guess in the console using either min() or filter(), then proceed to building a plot with that country removed.
+```{r}
+# Filter for Asia, add column indicating outliers
+gap_asia <- gap2007 %>%
+  filter(continent=="Asia") %>%
+  mutate(is_outlier = ifelse(lifeExp < 50,
+        TRUE,FALSE))
+
+# Remove outliers, create box plot of lifeExp
+gap_asia %>%
+  filter(!is_outlier) %>%
+  ggplot(aes(x = 1, y = lifeExp)) +
+  geom_boxplot()
+```
+Spam and num_char
+100xp
+Is there an association between spam and the length of an email? You could imagine a story either way:
+
+Spam is more likely to be a short message tempting me to click on a link, or
+My normal email is likely shorter since I exchange brief emails with my friends all the time.
+Here, you'll use the email dataset to settle that question. Begin by bringing up the help file and learning about all the variables with ?email.
+
+As you explore the association between spam and the length of an email, use this opportunity to try out linking a dplyr chain with the layers in a ggplot2 object.
+```{r}
+email <- read_csv("~/R Scripts/email.csv")
+email$spam = as.factor(email$spam)
+email$winner = as.factor(email$winner)
+email$number = as.factor(email$number)
+email$time = as.POSIXct.date(email$time)
+# Load packages
+library(ggplot2)
+library(dplyr)
+library(openintro)
+
+# Compute summary statistics
+email %>%
+  group_by(spam) %>%
+  summarize(median(num_char), IQR(num_char))
+
+# Create plot
+email %>%
+  mutate(log_num_char = log(num_char)) %>%
+  ggplot(aes(x = spam, y = log_num_char)) +
+  geom_boxplot()
+```
+##Spam and !!!
+
+Let's look at a more obvious indicator of spam: exclamation marks. exclaim_mess contains the number of exclamation marks in each message. Using summary statistics and visualization, see if there is a relationship between this variable and whether or not a message is spam.
+
+Experiment with different types of plots until you find one that is the most informative. Recall that you've seen:
+
+Side-by-side box plots
+Faceted histograms
+Overlaid density plots
+```{r}
+# Compute center and spread for exclaim_mess by spam
+ email %>%
+ group_by(spam) %>%
+    summarize(median(exclaim_mess),
+            IQR(exclaim_mess))
+
+
+# Create plot for spam and exclaim_mess
+ggplot(email, aes(x=exclaim_mess), fill=spam)+
+  geom_histogram(alpha=.3) +
+  facet_wrap(~spam)
+   
+ggplot(email, aes(x=log(exclaim_mess+.01), fill=spam))+
+  geom_histogram(alpha=.3) +
+  facet_wrap(~spam)
+
+```
+Data Integrity
+100xp
+In the process of exploring a dataset, you'll sometimes come across something that will lead you to question how the data were compiled. For example, the variable num_char contains the number of characters in the email, in thousands, so it could take decimal values, but it certainly shouldn't take negative values.
+
+You can formulate a test to ensure this variable is behaving as we expect:
+
+email$num_char < 0
+
+If you run this code at the console, you'll get a long vector of logical values indicating for each case in the dataset whether that condition is TRUE. Here, the first 1000 values all appear to be FALSE. To verify that all of the cases indeed have non-negative values for num_char, we can take the sum of this vector:
+
+sum(email$num_char < 0)
+
+This is a handy shortcut. When you do arithmetic on logical values, R treats TRUE as 1 and FALSE as 0. Since the sum over the whole vector is zero, you learn that every case in the dataset took a value of FALSE in the test. That is, the num_char column is behaving as we expect and taking only non-negative values.
+```{r}
+# Test if images count as attachments
+sum(email$image > email$attach)
+```
+##Answering questions with chains
+
+When you have a specific question about a dataset, you can find your way to an answer by carefully constructing the appropriate chain of R code. For example, consider the following question:
+
+"Within non-spam emails, is the typical length of emails shorter for those that were sent to multiple people?"
+This can be answered with the following chain:
+
+email %>%
+   filter(spam == "not-spam") %>%
+   group_by(to_multiple) %>%
+   summarize(median(num_char))
+The code makes it clear that you are using num_char to measure the length of an email and median() as the measure of what is typical. If you run this code, you'll learn that the answer to the question is "yes": the typical length of non-spam sent to multiple people is a bit lower than those sent to only one person.
+
+This chain concluded with summary statistics, but others might end in a plot; it all depends on the question that you're trying to answer.
+```{r}
+# Question 1
+email %>%
+  filter(dollar>0) %>%
+  group_by(spam) %>%
+  summarize(median(dollar))
+
+# Question 2
+email %>%
+  filter(dollar>10) %>%
+  ggplot(aes(x = spam)) +
+  geom_bar()
+```
+##What's in a number?
+
+Turn your attention to the variable called number. Read more about it by pulling up the help file with ?email.
+
+To explore the association between this variable and spam, select and construct an informative plot. For illustrating relationships between categorical variables, you've seen
+
+Faceted barcharts
+Side-by-side barcharts
+Stacked and normalized barcharts.
+Let's practice constructing a faceted barchart.
+```{r}
+# Reorder levels
+email$number <- factor(email$number,
+  levels=c("none", "small", "big"))
+
+# Construct plot of number
+ggplot(email, aes(x=number)) +
+  geom_bar() +
+  facet_wrap(~spam)
+```
+

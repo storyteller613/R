@@ -37,7 +37,7 @@ plot(term_count)
 
 ```{r}
 # Import text data
-tweets <- read.csv("~/R Scripts/coffee.csv", stringsAsFactors = FALSE)
+tweets <- read.csv("C:/Users/Y/Documents/1.R_scripts/ML/NLP/Text mining-bag of words/coffee.csv", stringsAsFactors = FALSE)
 
 # View the structure of tweets
 str(tweets)
@@ -85,7 +85,12 @@ Because another common text source is a data frame, there is a Source function c
 library(readr)
 
 #import example_text
-example_text <- read_csv("example_text.csv")
+example_text <- read.csv("C:/Users/Y/Documents/1.R_scripts/ML/NLP/Text mining-bag of words/example_text.csv", stringsAsFactors = FALSE)
+
+example_text <- read_csv("C:/Users/Y/Documents/1.R_scripts/ML/NLP/Text mining-bag of words/example_text.csv")
+
+class(example_text)
+str(example_text)
 
 # Print example_text to the console
 print(example_text)
@@ -253,26 +258,22 @@ print(complete_doc)
 ```{r}
 #load readr library
 library(readr)
+library(tm)
+library(NLP)
 
-#import coffee tweets
-tweets <- read_csv("coffee.csv", 
-    col_types = cols(created = col_datetime(format = "%m/%d/%Y %H:%M"), 
-        id = col_number(), replyToSID = col_number(), 
-        replyToUID = col_number()))
-head(tweets)
-dim(tweets)
+tweets <- read_csv("C:/Users/Y/Documents/1.R_scripts/ML/NLP/Text mining-bag of words/coffee.csv")
 
 # Print example_text to the console
-#print(example_text)
+print(tweets)
 
 # Create a DataframeSource on column 2: df_source
-tweets_source <- DataframeSource(tweets[,2])
+tweets_source <- DataframeSource(tweets)
 
 # Convert df_source to a corpus: df_corpus
-tweets_corpus <- VCorpus(tweets_source)
+tweets_corp <- VCorpus(tweets_source)
 
-# Examine df_corpus
-tweets_corpus
+# Examine tweets_corp
+tweets_corp
 
 # Create a VectorSource on column 3: vec_source
 #tweet_source <- VectorSource(tweets[,1])
@@ -293,13 +294,16 @@ clean_corpus <- function(corpus){
 }
 
 # Apply your customized function to the tweet_corp: clean_corp
-tweets_corp <- clean_corpus(tweets_corpus)
+clean_corp <- clean_corpus(tweets_corp)
 
 # Print out a cleaned up tweet
-print(tweets_corp[[227]][])
+print(clean_corp[[227]][])
 
 # Print out the same tweet in original form
 tweets$text[227]
+
+
+
 ```
 #The TDM & DTM
 
@@ -314,7 +318,7 @@ library(qdap)
 library(tm)
 
 # Create the dtm from the corpus: coffee_dtm
-coffee_dtm <- DocumentTermMatrix(tweets_corp)
+coffee_dtm <- DocumentTermMatrix(clean_corp)
 
 # Print out coffee_dtm data
 print(coffee_dtm)
